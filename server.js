@@ -1,45 +1,63 @@
 const express = require('express');
 const multer = require('multer');
-const { spawn } = require('child_process');
+const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
-const app = express();
 
+const app = express();
 const upload = multer({ dest: 'uploads/' });
-app.use(express.static('public'));
+
+// Log all requests for debugging
+app.use((req, res, next) => {
+    console.log(`Request: ${req.method} ${req.url}`);
+    next();
+});
+
+// Serve static files from 'public'
+app.use(express.static(path.join(__dirname, 'public')));
+console.log('Serving static files from:', path.join(__dirname, 'public'));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 app.post('/api/preview3d', upload.single('file'), (req, res) => {
+    const filePath = req.file.path;
     console.log(`Processing file: ${req.file.originalname}`);
-    // Use the full path to the nesting env's Python
-    const pythonPath = 'C:\\ProgramData\\anaconda3\\envs\\nesting\\python.exe'; // Adjust this!
-    const python = spawn(pythonPath, ['preview3d.py', req.file.path]);
-    let output = '';
-    python.stdout.on('data', (data) => {
-        output += data;
-        console.log(`Python stdout: ${data}`);
-    });
-    python.stderr.on('data', (data) => console.error(`Python error: ${data.toString()}`));
-    python.on('error', (err) => {
-        console.error(`Failed to spawn Python: ${err.message}`);
-        res.status(500).send('Python execution failed');
-    });
-    python.on('close', (code) => {
-        fs.unlinkSync(req.file.path);
-        if (code !== 0) {
-            console.error(`Python exited with code ${code}`);
-            res.status(500).send('Preview generation failed');
-        } else if (!output.trim()) {
-            console.error('No output from Python script');
-            res.status(500).send('No preview data received');
-        } else {
-            try {
-                res.json(JSON.parse(output));
-            } catch (err) {
-                console.error(`JSON parse error: ${err.message}, output: "${output}"`);
-                res.status(500).send('Invalid preview data');
-            }
+    exec(`python preview3d.py "${filePath}"`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Python error: ${error}`);
+            res.status(500).json({ error: error.message });
+            return;
         }
+        console.error(stderr);
+        console.log('Preview stdout:', stdout);
+        res.json(JSON.parse(stdout));
+        fs.unlink(filePath, (err) => {
+            if (err) console.error(`Failed to delete file: ${err}`);
+        });
     });
 });
 
-app.listen(3000, () => console.log('Server running on port 3000'));
+app.post('/api/nest', upload.single('file'), (req, res) => {
+    const filePath = req.file.path;
+    const { sheetWidth, sheetHeight, spacing } = req.body;
+    console.log(`Nesting file: ${req.file.originalname} with width=${sheetWidth}, height=${sheetHeight}, spacing=${spacing}`);
+    exec(`python nest.py "${filePath}" ${sheetWidth} ${sheetHeight} ${spacing}`, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Nest error: ${error}`);
+            res.status(500).json({ error: error.message });
+            return;
+        }
+        console.error(stderr);
+        console.log('Nest stdout:', stdout);
+        res.json(JSON.parse(stdout));
+        fs.unlink(filePath, (err) => {
+            if (err) console.error(`Failed to delete file: ${err}`);
+        });
+    });
+});
+
+app.listen(3000, () => {
+    console.log('Server running on port 3000');
+});
