@@ -2,72 +2,133 @@
 <html>
 <head>
     <title>Nesting App</title>
-    <!-- Load Three.js r118 core from unpkg -->
     <script src="https://unpkg.com/three@0.118.3/build/three.min.js"></script>
-    <!-- Load OrbitControls for r118 from unpkg -->
     <script src="https://unpkg.com/three@0.118.3/examples/js/controls/OrbitControls.js"></script>
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; }
         #controls { margin-bottom: 20px; }
         label { margin-right: 5px; }
         input, select, button { margin-right: 10px; }
-        #preview { width: 100%; height: 400px; border: 1px solid #ccc; }
+        .file-entry { margin-bottom: 15px; position: relative; }
+        .preview-box { width: 150px; height: 150px; border: 1px solid #ccc; display: inline-block; position: relative; }
+        .preview-box .axis-label-x { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 12px; }
+        .preview-box .axis-label-y { position: absolute; left: -20px; top: 50%; transform: translateY(-50%) rotate(-90deg); font-size: 12px; }
+        .tab { overflow: hidden; border: 1px solid #ccc; background-color: #f1f1f1; }
+        .tab button { background-color: inherit; float: left; border: none; outline: none; cursor: pointer; padding: 14px 16px; }
+        .tab button.active { background-color: #ccc; }
+        .tabcontent { display: none; padding: 6px 12px; border: 1px solid #ccc; border-top: none; }
+        #nestPreview { width: 100%; height: 400px; border: 1px solid #ccc; position: relative; }
+        #nestPreview .axis-label-x { position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%); font-size: 14px; }
+        #nestPreview .axis-label-y { position: absolute; left: -30px; top: 50%; transform: translateY(-50%) rotate(-90deg); font-size: 14px; }
     </style>
 </head>
 <body>
-    <div id="controls">
-        <label for="fileInput">STEP File:</label>
-        <input type="file" id="fileInput" accept=".step,.stp" />
-        <label for="colorSelect">Color:</label>
-        <select id="colorSelect">
-            <option value="gray">Gray</option>
-            <option value="red">Red</option>
-            <option value="green">Green</option>
-            <option value="blue">Blue</option>
-        </select>
-        <label for="sheetWidth">Sheet Width (mm):</label>
-        <input type="number" id="sheetWidth" value="1000" min="1" />
-        <label for="sheetHeight">Sheet Height (mm):</label>
-        <input type="number" id="sheetHeight" value="1000" min="1" />
-        <label for="spacing">Spacing (mm):</label>
-        <input type="number" id="spacing" value="5" min="0" step="0.1" />
-        <button id="nestButton">Nest</button>
+    <div class="tab">
+        <button class="tablinks" onclick="openTab(event, 'Input')" id="defaultOpen">Input</button>
+        <button class="tablinks" onclick="openTab(event, 'Nest')">Nest</button>
     </div>
-    <div id="preview"></div>
+
+    <div id="Input" class="tabcontent">
+        <div id="controls">
+            <div id="fileInputs">
+                <div class="file-entry" data-index="0">
+                    <label>STEP File:</label>
+                    <input type="file" class="fileInput" accept=".step,.stp" multiple />
+                    <label>Quantity:</label>
+                    <input type="number" class="quantityInput" value="1" min="1" />
+                    <label>Color:</label>
+                    <select class="colorSelect">
+                        <option value="gray">Gray</option>
+                        <option value="red">Red</option>
+                        <option value="green">Green</option>
+                        <option value="blue">Blue</option>
+                    </select>
+                    <label>Face Down:</label>
+                    <select class="faceDownSelect"></select>
+                    <div class="preview-box" id="preview-0">
+                        <div class="axis-label-x">X</div>
+                        <div class="axis-label-y">Y</div>
+                    </div>
+                </div>
+            </div>
+            <button id="addFile">Add Another File</button>
+            <label for="sheetWidth">Sheet Width (mm):</label>
+            <input type="number" id="sheetWidth" value="1000" min="1" />
+            <label for="sheetHeight">Sheet Height (mm):</label>
+            <input type="number" id="sheetHeight" value="1000" min="1" />
+            <label for="spacing">Part Spacing (mm):</label>
+            <input type="number" id="spacing" value="5" min="0" step="0.1" />
+            <label for="sheetGap">Sheet Gap (mm):</label>
+            <input type="number" id="sheetGap" value="10" min="0" step="0.1" />
+            <button id="nestButton">Nest</button>
+        </div>
+    </div>
+
+    <div id="Nest" class="tabcontent">
+        <div id="nestPreview">
+            <div class="axis-label-x">X</div>
+            <div class="axis-label-y">Y</div>
+        </div>
+        <button id="downloadStep">Download STEP</button>
+    </div>
+
     <script>
-        let scene, camera, renderer, controls, currentMesh;
+        let scenes = [], cameras = [], renderers = [], controls = [], meshes = [];
+        let nestScene, nestCamera, nestRenderer;
 
         window.addEventListener('load', () => {
             console.log('Three.js loaded:', typeof THREE !== 'undefined');
             console.log('OrbitControls loaded:', typeof THREE.OrbitControls !== 'undefined');
-            init3DPreview();
+            initPreview(0);
+            document.getElementById('defaultOpen').click();
         });
 
-        function init3DPreview() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / 400, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer();
-            renderer.setSize(window.innerWidth * 0.9, 400);
-            document.getElementById('preview').appendChild(renderer.domElement);
+        function initPreview(index) {
+            const previewBox = document.getElementById(`preview-${index}`);
+            scenes[index] = new THREE.Scene();
+            cameras[index] = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+            renderers[index] = new THREE.WebGLRenderer();
+            renderers[index].setSize(150, 150);
+            previewBox.appendChild(renderers[index].domElement);
 
-            if (typeof THREE.OrbitControls === 'undefined') {
-                console.error('OrbitControls not available');
-                return;
-            }
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
-            camera.position.z = 100;
-            animate();
+            controls[index] = new THREE.OrbitControls(cameras[index], renderers[index].domElement);
+            controls[index].enableZoom = false;
+            controls[index].enablePan = false;
+            controls[index].addEventListener('end', () => scaleToFit(index));
+
+            const ambientLight = new THREE.AmbientLight(0x404040);
+            scenes[index].add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(0, 1, 1).normalize();
+            scenes[index].add(directionalLight);
+
+            cameras[index].position.z = 100;
+            animatePreview(index);
         }
 
-        function animate() {
-            requestAnimationFrame(animate);
-            if (controls) controls.update();
-            renderer.render(scene, camera);
+        function animatePreview(index) {
+            requestAnimationFrame(() => animatePreview(index));
+            if (controls[index]) controls[index].update();
+            renderers[index].render(scenes[index], cameras[index]);
         }
 
-        function loadPreview(file, color) {
+        function scaleToFit(index) {
+            if (!meshes[index]) return;
+            const box = new THREE.Box3().setFromObject(meshes[index]);
+            const size = box.getSize(new THREE.Vector3());
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const scale = 100 / maxDim;
+            meshes[index].scale.set(scale, scale, scale);
+            const center = box.getCenter(new THREE.Vector3());
+            controls[index].target.copy(center);
+            cameras[index].position.set(center.x, center.y, center.z + 50);
+        }
+
+        function loadPreview(index, files, color) {
             const formData = new FormData();
-            formData.append('file', file);
+            for (let file of files) {
+                formData.append('files', file);
+            }
 
             fetch('/api/preview3d', {
                 method: 'POST',
@@ -75,17 +136,18 @@
             })
             .then(response => response.json())
             .then(data => {
-                console.log('Received data:', data);
+                console.log(`Preview data for file ${index}:`, data);
                 if (data.error) {
-                    console.error(`Failed to load 3D preview for ${file.name}: ${data.error}`);
+                    console.error(`Failed to load preview for file ${index}: ${data.error}`);
                     return;
                 }
 
-                if (currentMesh) scene.remove(currentMesh);
+                if (meshes[index]) scenes[index].remove(meshes[index]);
 
                 const geometry = new THREE.BufferGeometry();
                 geometry.setAttribute('position', new THREE.Float32BufferAttribute(data.mesh.vertices, 3));
                 geometry.setIndex(data.mesh.indices);
+                geometry.computeVertexNormals();
 
                 const colors = {
                     gray: { r: 0.5, g: 0.5, b: 0.5 },
@@ -95,29 +157,128 @@
                 };
                 const selectedColor = colors[color] || (data.color || { r: 0, g: 0, b: 1 });
 
-                const material = new THREE.MeshBasicMaterial({
+                const material = new THREE.MeshPhongMaterial({
                     color: new THREE.Color(selectedColor.r, selectedColor.g, selectedColor.b),
-                    side: THREE.DoubleSide
+                    side: THREE.DoubleSide,
+                    shininess: 30
                 });
-                currentMesh = new THREE.Mesh(geometry, material);
-                scene.add(currentMesh);
+                meshes[index] = new THREE.Mesh(geometry, material);
+                scenes[index].add(meshes[index]);
 
-                const box = new THREE.Box3().setFromObject(currentMesh);
-                const center = box.getCenter(new THREE.Vector3());
-                if (controls) {
-                    controls.target.copy(center);
-                    camera.position.set(center.x, center.y, center.z + 100);
-                }
+                const faces = data.faces;
+                const largestFaceIdx = maxRange(faces.length, i => faces[i].area);
+                const startIdx = faces[largestFaceIdx].index_start;
+                const count = faces[largestFaceIdx].index_count;
+                const faceIndices = data.mesh.indices.slice(startIdx, startIdx + count);
+                const vertices = data.mesh.vertices;
+                const v1 = new THREE.Vector3(...vertices.slice(faceIndices[0] * 3, faceIndices[0] * 3 + 3));
+                const v2 = new THREE.Vector3(...vertices.slice(faceIndices[1] * 3, faceIndices[1] * 3 + 3));
+                const v3 = new THREE.Vector3(...vertices.slice(faceIndices[2] * 3, faceIndices[2] * 3 + 3));
+                const normal = new THREE.Vector3().crossVectors(v2.sub(v1), v3.sub(v1)).normalize();
+                const up = new THREE.Vector3(0, 0, 1);
+                const quaternion = new THREE.Quaternion().setFromUnitVectors(normal, up);
+                meshes[index].setRotationFromQuaternion(quaternion);
+
+                scaleToFit(index);
+
+                const faceSelect = document.getElementsByClassName('faceDownSelect')[index];
+                faceSelect.innerHTML = '<option value="largest">Largest Area</option>';
+                data.faces.forEach((face, i) => {
+                    const option = document.createElement('option');
+                    option.value = i;
+                    option.text = `Face ${i} (Area: ${face.area.toFixed(2)})`;
+                    faceSelect.appendChild(option);
+                });
             })
-            .catch(error => console.error(`Failed to load 3D preview for ${file.name}: ${error}`));
+            .catch(error => console.error(`Failed to load preview for file ${index}: ${error}`));
         }
 
-        function nest(file, sheetWidth, sheetHeight, spacing) {
+        function maxRange(n, fn) {
+            let maxIdx = 0;
+            let maxVal = fn(0);
+            for (let i = 1; i < n; i++) {
+                const val = fn(i);
+                if (val > maxVal) {
+                    maxVal = val;
+                    maxIdx = i;
+                }
+            }
+            return maxIdx;
+        }
+
+        function initNestPreview() {
+            nestScene = new THREE.Scene();
+            const width = window.innerWidth * 0.9;
+            const height = 400;
+            const aspect = width / height;
+            const sheetWidth = 1000;
+            const sheetHeight = 1000;
+            nestCamera = new THREE.OrthographicCamera(
+                -sheetWidth / 2, sheetWidth / 2, sheetHeight / 2, -sheetHeight / 2, 1, 1000
+            );
+            nestRenderer = new THREE.WebGLRenderer();
+            nestRenderer.setSize(width, height);
+            document.getElementById('nestPreview').appendChild(nestRenderer.domElement);
+            nestCamera.position.set(0, 0, 500);
+            nestCamera.lookAt(0, 0, 0);
+            animateNestPreview();
+        }
+
+        function animateNestPreview() {
+            requestAnimationFrame(animateNestPreview);
+            nestRenderer.render(nestScene, nestCamera);
+        }
+
+		function renderNest(data) {
+			if (!nestRenderer) initNestPreview();
+			while (nestScene.children.length > 0) {
+				nestScene.remove(nestScene.children[0]);
+			}
+
+			const sheetGeo = new THREE.PlaneGeometry(data.nesting.sheet_width, data.nesting.sheet_height);
+			const sheetMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
+			const sheet = new THREE.Mesh(sheetGeo, sheetMat);
+			sheet.position.set(0, 0, 0);
+			nestScene.add(sheet);
+
+			data.parts.forEach((part, partIdx) => {
+				const geometry = new THREE.BufferGeometry();
+				geometry.setAttribute('position', new THREE.Float32BufferAttribute(part.mesh.vertices, 3));
+				geometry.setIndex(part.mesh.indices);
+				const material = new THREE.MeshBasicMaterial({
+					color: new THREE.Color(part.color.r, part.color.g, part.color.b),
+					side: THREE.DoubleSide
+				});
+				const partPositions = part.positions || data.nesting.positions.slice(0, part.quantity);
+				for (let i = 0; i < part.quantity && i < partPositions.length; i++) {
+					const pos = partPositions[i];
+					const mesh = new THREE.Mesh(geometry, material);
+					mesh.position.set(
+						pos.x - data.nesting.sheet_width / 2 + 50,
+						pos.y - data.nesting.sheet_height / 2 + 50,
+						0  // Force Z=0 for top-down view
+					);
+					mesh.rotation.set(0, 0, 0);  // Rely on nest.py rotation
+					nestScene.add(mesh);
+				}
+			});
+		}
+        function nest(files, quantities, colors, sheetWidth, sheetHeight, spacing, sheetGap, faceDown) {
             const formData = new FormData();
-            formData.append('file', file);
+            for (let file of files) {
+                formData.append('files', file);
+            }
+            formData.append('quantities', JSON.stringify(quantities));
+            formData.append('colors', JSON.stringify(colors.map(c => ({
+                r: { gray: 0.5, red: 1, green: 0, blue: 0 }[c],
+                g: { gray: 0.5, red: 0, green: 1, blue: 0 }[c],
+                b: { gray: 0.5, red: 0, green: 0, blue: 1 }[c]
+            }))));
             formData.append('sheetWidth', sheetWidth);
             formData.append('sheetHeight', sheetHeight);
             formData.append('spacing', spacing);
+            formData.append('sheetGap', sheetGap);
+            formData.append('faceDown', faceDown);
 
             fetch('/api/nest', {
                 method: 'POST',
@@ -127,37 +288,115 @@
             .then(data => {
                 console.log('Nest result:', data);
                 if (data.error) {
-                    console.error(`Nesting failed for ${file.name}: ${data.error}`);
+                    console.error(`Nesting failed: ${data.error}`);
                     return;
                 }
+                try {
+                    renderNest(data);
+                } catch (e) {
+                    console.error('Rendering failed:', e);
+                }
+                document.getElementById('downloadStep').onclick = () => {
+                    console.log('Downloading STEP with data:', data);
+                    fetch('/api/download_nest', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => {
+                        if (!response.ok) throw new Error(`Download failed: ${response.statusText}`);
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'nested_parts.step';
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                    })
+                    .catch(error => console.error('Download error:', error));
+                };
+                openTab({ currentTarget: document.getElementsByClassName('tablinks')[1] }, 'Nest');
             })
-            .catch(error => console.error(`Nesting failed for ${file.name}: ${error}`));
+            .catch(error => console.error(`Nesting failed: ${error}`));
         }
 
-        document.getElementById('fileInput').addEventListener('change', () => {
-            const fileInput = document.getElementById('fileInput');
-            const colorSelect = document.getElementById('colorSelect');
-            const file = fileInput.files[0];
-            if (file) loadPreview(file, colorSelect.value);
+        document.getElementById('addFile').addEventListener('click', () => {
+            const fileInputs = document.getElementById('fileInputs');
+            const index = fileInputs.children.length;
+            const newEntry = document.createElement('div');
+            newEntry.className = 'file-entry';
+            newEntry.dataset.index = index;
+            newEntry.innerHTML = `
+                <label>STEP File:</label>
+                <input type="file" class="fileInput" accept=".step,.stp" multiple />
+                <label>Quantity:</label>
+                <input type="number" class="quantityInput" value="1" min="1" />
+                <label>Color:</label>
+                <select class="colorSelect">
+                    <option value="gray">Gray</option>
+                    <option value="red">Red</option>
+                    <option value="green">Green</option>
+                    <option value="blue">Blue</option>
+                </select>
+                <label>Face Down:</label>
+                <select class="faceDownSelect"></select>
+                <div class="preview-box" id="preview-${index}">
+                    <div class="axis-label-x">X</div>
+                    <div class="axis-label-y">Y</div>
+                </div>
+            `;
+            fileInputs.appendChild(newEntry);
+            initPreview(index);
         });
 
-        document.getElementById('colorSelect').addEventListener('change', () => {
-            const fileInput = document.getElementById('fileInput');
-            const colorSelect = document.getElementById('colorSelect');
-            const file = fileInput.files[0];
-            if (file) loadPreview(file, colorSelect.value);
+        document.getElementById('fileInputs').addEventListener('change', (event) => {
+            if (event.target.className === 'fileInput') {
+                const index = parseInt(event.target.closest('.file-entry').dataset.index);
+                const files = event.target.files;
+                const color = document.getElementsByClassName('colorSelect')[index].value;
+                if (files.length > 0) loadPreview(index, files, color);
+            } else if (event.target.className === 'colorSelect') {
+                const index = parseInt(event.target.closest('.file-entry').dataset.index);
+                const files = document.getElementsByClassName('fileInput')[index].files;
+                const color = event.target.value;
+                if (files.length > 0) loadPreview(index, files, color);
+            }
         });
 
         document.getElementById('nestButton').addEventListener('click', () => {
-            const fileInput = document.getElementById('fileInput');
+            const files = Array.from(document.getElementsByClassName('fileInput'))
+                .filter(input => input.files.length > 0)
+                .flatMap(input => Array.from(input.files));
+            const quantities = Array.from(document.getElementsByClassName('quantityInput'))
+                .slice(0, files.length)
+                .map(input => parseInt(input.value));
+            const colors = Array.from(document.getElementsByClassName('colorSelect'))
+                .slice(0, files.length)
+                .map(select => select.value);
             const sheetWidth = document.getElementById('sheetWidth').value;
             const sheetHeight = document.getElementById('sheetHeight').value;
             const spacing = document.getElementById('spacing').value;
-            const file = fileInput.files[0];
-            if (file) {
-                nest(file, sheetWidth, sheetHeight, spacing);
+            const sheetGap = document.getElementById('sheetGap').value;
+            const faceDown = document.getElementsByClassName('faceDownSelect')[0].value;
+            if (files.length > 0) {
+                nest(files, quantities, colors, sheetWidth, sheetHeight, spacing, sheetGap, faceDown);
             }
         });
+
+        function openTab(evt, tabName) {
+            const tabcontent = document.getElementsByClassName('tabcontent');
+            for (let i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = 'none';
+            }
+            const tablinks = document.getElementsByClassName('tablinks');
+            for (let i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(' active', '');
+            }
+            document.getElementById(tabName).style.display = 'block';
+            evt.currentTarget.className += ' active';
+        }
     </script>
 </body>
 </html>
