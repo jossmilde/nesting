@@ -594,7 +594,11 @@ def main(job_file_path):
         best_placement_overall_for_part = None
         target_sheets = available_sheets.get(part_thickness, [])
         if not target_sheets:
-            logging.warning(f"  Geen platen dikte {part_thickness}.")
+            error_msg = (
+                f"Geen platen beschikbaar voor dikte {part_thickness}. "
+                "Onderdelen en platen moeten dezelfde thickness hebben."
+            )
+            format_error(error_msg)
         rotated_cache = {}
         for angle in possible_angles:
             if angle not in rotated_cache:
