@@ -338,6 +338,89 @@ def polygon_to_svg(poly):
     path = "M " + " L ".join(f"{x:.2f},{y:.2f}" for x, y in coords) + " Z"
     return path
 
+# --- Helper: evalueer kandidaatpunten ---
+def evaluate_candidate_points(points_to_test, sheet, sheet_index, rotated_poly, rotated_ref_x, rotated_ref_y, rotation_angle, candidate_valid_area, candidate_buffer_amount):
+    best_candidate = None
+    for cand_idx, (px, py) in enumerate(points_to_test):
+        trans_x = px - rotated_ref_x
+        trans_y = py - rotated_ref_y
+        candidate_poly_shapely = translate(rotated_poly, trans_x, trans_y)
+        if not candidate_poly_shapely.within(candidate_valid_area):
+            logging.debug(
+                f"       Kandidaat {cand_idx+1} afgewezen: Niet volledig binnen geldig gebied."
+            )
+            continue
+        if candidate_buffer_amount > ZERO_TOLERANCE:
+            buffered_candidate = candidate_poly_shapely.buffer(candidate_buffer_amount, cap_style=1, join_style=1)
+        else:
+            buffered_candidate = candidate_poly_shapely
+        if not buffered_candidate.is_valid:
+            logging.warning(f"       Kandidaat {cand_idx+1} afgewezen: Gebufferde kandidaat ongeldig.")
+            continue
+        placed_buffers = sheet["placed_shapely_polygons_buffered"]
+        if len(placed_buffers) < INDEX_THRESHOLD:
+            nearby_polygons_to_check = placed_buffers
+        else:
+            tree = sheet.get("buffered_polygon_tree")
+            if tree is None or (hasattr(tree, 'geometries') and len(tree.geometries) != len(placed_buffers)):
+                tree = STRtree(placed_buffers)
+                sheet["buffered_polygon_tree"] = tree
+            nearby_polygons_to_check = tree.query(buffered_candidate.envelope)
+            try:
+                nearby_polygons_to_check = list(nearby_polygons_to_check)
+            except Exception:
+                nearby_polygons_to_check = []
+            if nearby_polygons_to_check and isinstance(nearby_polygons_to_check[0], (int, np.integer)):
+                nearby_polygons_to_check = [placed_buffers[i] for i in nearby_polygons_to_check if i < len(placed_buffers)]
+        is_valid_final = True
+        for existing_buffered_poly in nearby_polygons_to_check:
+            if not hasattr(existing_buffered_poly, "geom_type"):
+                continue
+            if buffered_candidate.intersects(existing_buffered_poly):
+                try:
+                    intersection = buffered_candidate.intersection(existing_buffered_poly)
+                    if intersection.area > 1e-2:
+                        is_valid_final = False
+                        logging.debug(
+                            f"       Kandidaat {cand_idx+1} afgewezen: Overlap gedetecteerd (intersection area: {intersection.area})."
+                        )
+                        break
+                except Exception as e:
+                    is_valid_final = False
+                    logging.debug(
+                        f"       Kandidaat {cand_idx+1} afgewezen: Fout tijdens intersectiecheck: {e}."
+                    )
+                    break
+        if is_valid_final:
+            candidate_bounds = candidate_poly_shapely.bounds
+            bbox_final = {
+                "min_x": candidate_bounds[0],
+                "min_y": candidate_bounds[1],
+                "max_x": candidate_bounds[2],
+                "max_y": candidate_bounds[3],
+                "width": max(0.0, round(candidate_bounds[2]-candidate_bounds[0], 4)),
+                "height": max(0.0, round(candidate_bounds[3]-candidate_bounds[1], 4))
+            }
+            current = {
+                "sheet_instance": sheet,
+                "sheet_index": sheet_index,
+                "x": round(bbox_final['min_x'], 4),
+                "y": round(bbox_final['min_y'], 4),
+                "angle": rotation_angle,
+                "width_bbox": bbox_final["width"],
+                "height_bbox": bbox_final["height"],
+                "placed_shapely_polygon": candidate_poly_shapely
+            }
+            if best_candidate is None:
+                best_candidate = current
+            else:
+                best = best_candidate
+                if current["x"] < best["x"] - TOLERANCE or (
+                    abs(current["x"] - best["x"]) < TOLERANCE and current["y"] < best["y"] - TOLERANCE
+                ):
+                    best_candidate = current
+    return best_candidate
+
 # --- Rotatie-hoeken automatisch bepalen op basis van aantal segmenten ---
 def determine_candidate_angles(num_segments):
     """ Als het aantal unieke segmenten (n) ≤ 10, dan:
@@ -544,7 +627,8 @@ def main(job_file_path):
                     "placed_items": [],
                     "placed_original_polygons": [],
                     "placed_shapely_polygons_buffered": [],
-                    "buffered_polygon_tree": None
+                    "buffered_polygon_tree": None,
+                    "candidate_points": [(sheet_margin, sheet_margin)]
                 }
                 available_sheets[thickness].append(sheet_instance)
                 sheet_id_map[sheet_inst_id] = sheet_def
@@ -659,96 +743,36 @@ def main(job_file_path):
                     if not ifp_shapely or ifp_shapely.is_empty:
                         logging.debug(f"      Kon IFP paden niet naar Shapely converteren op {sheet['id']}.")
                         continue
-                    potential_points_raw = []
-                    geoms_to_process = []
-                    if isinstance(ifp_shapely, Polygon):
-                        geoms_to_process.append(ifp_shapely)
-                    elif isinstance(ifp_shapely, MultiPolygon):
-                        geoms_to_process.extend(list(ifp_shapely.geoms))
-                    for geom in geoms_to_process:
-                        if isinstance(geom, Polygon) and not geom.is_empty:
-                            potential_points_raw.extend(list(geom.exterior.coords)[:-1])
-                    if not potential_points_raw:
-                        logging.debug(f"      Geen IFP punten op {sheet['id']}.")
-                        continue
-                    unique_potential_points = {(round(p[0],4), round(p[1],4)) for p in potential_points_raw}
-                    sorted_candidate_points = sorted(list(unique_potential_points), key=lambda p: (p[0], p[1]))
-                    points_to_test = sorted_candidate_points
-                    logging.debug(f"      Aantal IFP punten te testen: {len(points_to_test)} (van {len(sorted_candidate_points)})")
+                    existing_candidate_points = sheet.get("candidate_points", [])
+
                     candidate_valid_area = sheet["sheet_polygon_with_margin"]
                     candidate_buffer_amount = (part_spacing/2.0) + TOLERANCE
                     best_placement_for_this_angle_sheet = None
-                    for cand_idx, (px, py) in enumerate(points_to_test):
-                        trans_x = px - rotated_ref_offset_x
-                        trans_y = py - rotated_ref_offset_y
-                        candidate_poly_shapely = translate(rotated_shapely_polygon, trans_x, trans_y)
-                        if not candidate_poly_shapely.within(candidate_valid_area):
-                            logging.debug(f"       Kandidaat {cand_idx+1} afgewezen: Niet volledig binnen geldig gebied. Kandidaat bounds: {candidate_poly_shapely.bounds}, Geldige bounds: {candidate_valid_area.bounds}")
+                    if existing_candidate_points:
+                        unique_cache = sorted(list({(round(p[0],4), round(p[1],4)) for p in existing_candidate_points}), key=lambda p: (p[0], p[1]))
+                        logging.debug(f"      Cached punten te testen: {len(unique_cache)}")
+                        best_placement_for_this_angle_sheet = evaluate_candidate_points(unique_cache, sheet, sheet_index, rotated_shapely_polygon, rotated_ref_offset_x, rotated_ref_offset_y, angle, candidate_valid_area, candidate_buffer_amount)
+
+                    if best_placement_for_this_angle_sheet is None:
+                        potential_points_raw = []
+                        geoms_to_process = []
+                        if isinstance(ifp_shapely, Polygon):
+                            geoms_to_process.append(ifp_shapely)
+                        elif isinstance(ifp_shapely, MultiPolygon):
+                            geoms_to_process.extend(list(ifp_shapely.geoms))
+                        for geom in geoms_to_process:
+                            if isinstance(geom, Polygon) and not geom.is_empty:
+                                potential_points_raw.extend(list(geom.exterior.coords)[:-1])
+                        if not potential_points_raw:
+                            logging.debug(f"      Geen IFP punten op {sheet['id']}.")
                             continue
-                        if candidate_buffer_amount > ZERO_TOLERANCE:
-                            buffered_candidate = candidate_poly_shapely.buffer(candidate_buffer_amount, cap_style=1, join_style=1)
-                        else:
-                            buffered_candidate = candidate_poly_shapely
-                        if not buffered_candidate.is_valid:
-                            logging.warning(f"       Kandidaat {cand_idx+1} afgewezen: Gebufferde kandidaat ongeldig.")
-                            continue
-                        placed_buffers = sheet["placed_shapely_polygons_buffered"]
-                        if len(placed_buffers) < INDEX_THRESHOLD:
-                            nearby_polygons_to_check = placed_buffers
-                        else:
-                            tree = sheet.get("buffered_polygon_tree")
-                            if tree is None or (hasattr(tree, 'geometries') and len(tree.geometries) != len(placed_buffers)):
-                                tree = STRtree(placed_buffers)
-                                sheet["buffered_polygon_tree"] = tree
-                            nearby_polygons_to_check = tree.query(buffered_candidate.envelope)
-                            try:
-                                nearby_polygons_to_check = list(nearby_polygons_to_check)
-                            except Exception:
-                                nearby_polygons_to_check = []
-                            if nearby_polygons_to_check and isinstance(nearby_polygons_to_check[0], (int, np.integer)):
-                                nearby_polygons_to_check = [placed_buffers[i] for i in nearby_polygons_to_check if i < len(placed_buffers)]
-                        is_valid_final = True
-                        for existing_buffered_poly in nearby_polygons_to_check:
-                            if not hasattr(existing_buffered_poly, "geom_type"):
-                                continue
-                            if buffered_candidate.intersects(existing_buffered_poly):
-                                try:
-                                    intersection = buffered_candidate.intersection(existing_buffered_poly)
-                                    if intersection.area > ZERO_TOLERANCE:
-                                        is_valid_final = False
-                                        logging.debug(f"       Kandidaat {cand_idx+1} afgewezen: Overlap gedetecteerd (intersection area: {intersection.area}).")
-                                        break
-                                except Exception as e:
-                                    is_valid_final = False
-                                    logging.debug(f"       Kandidaat {cand_idx+1} afgewezen: Fout tijdens intersectiecheck: {e}.")
-                                    break
-                        if is_valid_final:
-                            candidate_bounds = candidate_poly_shapely.bounds
-                            bbox_final = {
-                                "min_x": candidate_bounds[0],
-                                "min_y": candidate_bounds[1],
-                                "max_x": candidate_bounds[2],
-                                "max_y": candidate_bounds[3],
-                                "width": max(0.0, round(candidate_bounds[2]-candidate_bounds[0], 4)),
-                                "height": max(0.0, round(candidate_bounds[3]-candidate_bounds[1], 4))
-                            }
-                            current_placement_candidate = {
-                                "sheet_instance": sheet,
-                                "sheet_index": sheet_index,
-                                "x": round(bbox_final['min_x'], 4),
-                                "y": round(bbox_final['min_y'], 4),
-                                "angle": round(angle, 4),
-                                "width_bbox": bbox_final["width"],
-                                "height_bbox": bbox_final["height"],
-                                "placed_shapely_polygon": candidate_poly_shapely
-                            }
-                            if best_placement_for_this_angle_sheet is None:
-                                best_placement_for_this_angle_sheet = current_placement_candidate
-                            else:
-                                curr = current_placement_candidate
-                                best = best_placement_for_this_angle_sheet
-                                if curr["x"] < best["x"] - TOLERANCE or (abs(curr["x"] - best["x"]) < TOLERANCE and curr["y"] < best["y"] - TOLERANCE):
-                                    best_placement_for_this_angle_sheet = curr
+
+                        unique_potential_points = {(round(p[0],4), round(p[1],4)) for p in potential_points_raw}
+                        sorted_candidate_points = sorted(list(unique_potential_points), key=lambda p: (p[0], p[1]))
+                        logging.debug(f"      Aantal IFP punten te testen: {len(sorted_candidate_points)}")
+                        best_placement_for_this_angle_sheet = evaluate_candidate_points(sorted_candidate_points, sheet, sheet_index, rotated_shapely_polygon, rotated_ref_offset_x, rotated_ref_offset_y, angle, candidate_valid_area, candidate_buffer_amount)
+
+
                     if best_placement_for_this_angle_sheet:
                         if best_placement_overall_for_part is None:
                             best_placement_overall_for_part = best_placement_for_this_angle_sheet
@@ -814,6 +838,25 @@ def main(job_file_path):
                 except Exception as tree_error:
                     logging.error(f"  Fout update STRtree {sheet_to_place_on['id']}: {tree_error}")
                     sheet_to_place_on["buffered_polygon_tree"] = None
+            # Update candidate points for bottom-left placement
+            cp_list = sheet_to_place_on.get("candidate_points", [])
+            cp_list.append((final_x + final_w + part_spacing, final_y))
+            cp_list.append((final_x, final_y + final_h + part_spacing))
+            valid_area = sheet_to_place_on["sheet_polygon_with_margin"]
+            new_list = []
+            for cx, cy in cp_list:
+                pt = Point(cx, cy)
+                if not valid_area.contains(pt):
+                    continue
+                overlap = False
+                for buff in sheet_to_place_on["placed_shapely_polygons_buffered"]:
+                    if pt.within(buff):
+                        overlap = True
+                        break
+                if not overlap:
+                    new_list.append((round(cx,4), round(cy,4)))
+            # remove duplicates and sort by x,y
+            sheet_to_place_on["candidate_points"] = sorted(list({(x,y) for x,y in new_list}), key=lambda p: (p[0], p[1]))
             logging.info(f"  ==> Geplaatst (TEST NoLimit): {instance_id_log} op {sheet_to_place_on['id']} @ ({final_x:.1f}, {final_y:.1f}) R:{final_angle:.1f}")
         else:
             unplaced_parts_from_nesting.append(part_instance)
