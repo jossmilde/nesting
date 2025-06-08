@@ -1,0 +1,80 @@
+2025-06-08 10:10:58 INFO     run_nesting.py v0.19.1-diag-nolimit (TEST: Geen IFP Limiet) gestart.
+2025-06-08 10:10:58 INFO     Logbestand: C:\nesting2\nesting_run.log
+2025-06-08 10:10:58 INFO     Shapely & Pyclipper gevonden. Clipper Schaal: 10000.0
+2025-06-08 10:10:58 INFO     Job file 'C:\nesting2\temp_jobs\job-1749370257889-bbe7bc8e.json' geladen (0.00s).
+2025-06-08 10:10:58 INFO     Parameters: partSpacing=5, sheetMargin=10, allowRotation='1', bestFitScore='YX', maxIfpPoints=NO_LIMIT_TEST
+2025-06-08 10:10:58 INFO     Data voorbereiden...
+2025-06-08 10:10:58 DEBUG    Simplify '100mm_square.step': Perimeter = 400.00, tolerance = 5.00. Segmenten: 4
+2025-06-08 10:10:58 DEBUG    Onderdeel '100mm_square.step' (id: upload-1749370110322-357451326.step) final heeft 4 lijnsegmenten.
+2025-06-08 10:10:58 DEBUG    Automatisch bepaalde rotatiehoeken voor '100mm_square.step' (n=4): [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG      Toegestane rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG    Unieke onderdelen met aantal lijnsegmenten:
+2025-06-08 10:10:58 DEBUG    Part '100mm_square.step' (id: upload-1749370110322-357451326.step) heeft 4 lijnsegmenten. Mogelijke rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 INFO     Voorbereiding voltooid (0.00s).
+2025-06-08 10:10:58 INFO     10 onderdeel-instanties te plaatsen.
+2025-06-08 10:10:58 INFO     2 plaat-instanties beschikbaar (1 diktes).
+2025-06-08 10:10:58 INFO     Start nesting (TEST: Geen IFP Limiet + STRtree)...
+2025-06-08 10:10:58 INFO     [1/10] Verwerken: upload-1749370110322-357451326.step_inst_1 (100mm_square.step) Dikte: 5
+2025-06-08 10:10:58 DEBUG    Onderdeel '100mm_square.step' (id: upload-1749370110322-357451326.step) heeft 4 lijnsegmenten.
+2025-06-08 10:10:58 DEBUG    Automatisch bepaalde rotatiehoeken voor '100mm_square.step' (n=4): [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG      Toegestane rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 WARNING    Geen platen dikte 5.
+2025-06-08 10:10:58 WARNING    Kon upload-1749370110322-357451326.step_inst_1 (100mm_square.step) niet plaatsen (geen geldige positie).
+2025-06-08 10:10:58 INFO     [2/10] Verwerken: upload-1749370110322-357451326.step_inst_2 (100mm_square.step) Dikte: 5
+2025-06-08 10:10:58 DEBUG    Onderdeel '100mm_square.step' (id: upload-1749370110322-357451326.step) heeft 4 lijnsegmenten.
+2025-06-08 10:10:58 DEBUG    Automatisch bepaalde rotatiehoeken voor '100mm_square.step' (n=4): [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG      Toegestane rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 WARNING    Geen platen dikte 5.
+2025-06-08 10:10:58 WARNING    Kon upload-1749370110322-357451326.step_inst_2 (100mm_square.step) niet plaatsen (geen geldige positie).
+2025-06-08 10:10:58 INFO     [3/10] Verwerken: upload-1749370110322-357451326.step_inst_3 (100mm_square.step) Dikte: 5
+2025-06-08 10:10:58 DEBUG    Onderdeel '100mm_square.step' (id: upload-1749370110322-357451326.step) heeft 4 lijnsegmenten.
+2025-06-08 10:10:58 DEBUG    Automatisch bepaalde rotatiehoeken voor '100mm_square.step' (n=4): [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG      Toegestane rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 WARNING    Geen platen dikte 5.
+2025-06-08 10:10:58 WARNING    Kon upload-1749370110322-357451326.step_inst_3 (100mm_square.step) niet plaatsen (geen geldige positie).
+2025-06-08 10:10:58 INFO     [4/10] Verwerken: upload-1749370110322-357451326.step_inst_4 (100mm_square.step) Dikte: 5
+2025-06-08 10:10:58 DEBUG    Onderdeel '100mm_square.step' (id: upload-1749370110322-357451326.step) heeft 4 lijnsegmenten.
+2025-06-08 10:10:58 DEBUG    Automatisch bepaalde rotatiehoeken voor '100mm_square.step' (n=4): [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG      Toegestane rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 WARNING    Geen platen dikte 5.
+2025-06-08 10:10:58 WARNING    Kon upload-1749370110322-357451326.step_inst_4 (100mm_square.step) niet plaatsen (geen geldige positie).
+2025-06-08 10:10:58 INFO     [5/10] Verwerken: upload-1749370110322-357451326.step_inst_5 (100mm_square.step) Dikte: 5
+2025-06-08 10:10:58 DEBUG    Onderdeel '100mm_square.step' (id: upload-1749370110322-357451326.step) heeft 4 lijnsegmenten.
+2025-06-08 10:10:58 DEBUG    Automatisch bepaalde rotatiehoeken voor '100mm_square.step' (n=4): [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG      Toegestane rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 WARNING    Geen platen dikte 5.
+2025-06-08 10:10:58 WARNING    Kon upload-1749370110322-357451326.step_inst_5 (100mm_square.step) niet plaatsen (geen geldige positie).
+2025-06-08 10:10:58 INFO     [6/10] Verwerken: upload-1749370110322-357451326.step_inst_6 (100mm_square.step) Dikte: 5
+2025-06-08 10:10:58 DEBUG    Onderdeel '100mm_square.step' (id: upload-1749370110322-357451326.step) heeft 4 lijnsegmenten.
+2025-06-08 10:10:58 DEBUG    Automatisch bepaalde rotatiehoeken voor '100mm_square.step' (n=4): [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG      Toegestane rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 WARNING    Geen platen dikte 5.
+2025-06-08 10:10:58 WARNING    Kon upload-1749370110322-357451326.step_inst_6 (100mm_square.step) niet plaatsen (geen geldige positie).
+2025-06-08 10:10:58 INFO     [7/10] Verwerken: upload-1749370110322-357451326.step_inst_7 (100mm_square.step) Dikte: 5
+2025-06-08 10:10:58 DEBUG    Onderdeel '100mm_square.step' (id: upload-1749370110322-357451326.step) heeft 4 lijnsegmenten.
+2025-06-08 10:10:58 DEBUG    Automatisch bepaalde rotatiehoeken voor '100mm_square.step' (n=4): [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG      Toegestane rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 WARNING    Geen platen dikte 5.
+2025-06-08 10:10:58 WARNING    Kon upload-1749370110322-357451326.step_inst_7 (100mm_square.step) niet plaatsen (geen geldige positie).
+2025-06-08 10:10:58 INFO     [8/10] Verwerken: upload-1749370110322-357451326.step_inst_8 (100mm_square.step) Dikte: 5
+2025-06-08 10:10:58 DEBUG    Onderdeel '100mm_square.step' (id: upload-1749370110322-357451326.step) heeft 4 lijnsegmenten.
+2025-06-08 10:10:58 DEBUG    Automatisch bepaalde rotatiehoeken voor '100mm_square.step' (n=4): [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG      Toegestane rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 WARNING    Geen platen dikte 5.
+2025-06-08 10:10:58 WARNING    Kon upload-1749370110322-357451326.step_inst_8 (100mm_square.step) niet plaatsen (geen geldige positie).
+2025-06-08 10:10:58 INFO     [9/10] Verwerken: upload-1749370110322-357451326.step_inst_9 (100mm_square.step) Dikte: 5
+2025-06-08 10:10:58 DEBUG    Onderdeel '100mm_square.step' (id: upload-1749370110322-357451326.step) heeft 4 lijnsegmenten.
+2025-06-08 10:10:58 DEBUG    Automatisch bepaalde rotatiehoeken voor '100mm_square.step' (n=4): [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG      Toegestane rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 WARNING    Geen platen dikte 5.
+2025-06-08 10:10:58 WARNING    Kon upload-1749370110322-357451326.step_inst_9 (100mm_square.step) niet plaatsen (geen geldige positie).
+2025-06-08 10:10:58 INFO     [10/10] Verwerken: upload-1749370110322-357451326.step_inst_10 (100mm_square.step) Dikte: 5
+2025-06-08 10:10:58 DEBUG    Onderdeel '100mm_square.step' (id: upload-1749370110322-357451326.step) heeft 4 lijnsegmenten.
+2025-06-08 10:10:58 DEBUG    Automatisch bepaalde rotatiehoeken voor '100mm_square.step' (n=4): [0.0, 90.0]
+2025-06-08 10:10:58 DEBUG      Toegestane rotaties: [0.0, 90.0]
+2025-06-08 10:10:58 WARNING    Geen platen dikte 5.
+2025-06-08 10:10:58 WARNING    Kon upload-1749370110322-357451326.step_inst_10 (100mm_square.step) niet plaatsen (geen geldige positie).
+2025-06-08 10:10:58 INFO     Nesting loop voltooid (0.01s).
+2025-06-08 10:10:58 INFO     Resultaten formatteren...
+2025-06-08 10:10:58 INFO     Resultaat naar stdout sturen.
+2025-06-08 10:10:58 INFO     Statistieken: {"totalPartsRequested": 10, "totalPartsPlaced": 0, "totalPartsUnplaced": 10, "initiallySkipped": 0, "unplacedDuringNesting": 10, "nestingTimeSeconds": 0.01, "preparationTimeSeconds": 0.0, "loadingTimeSeconds": 0.0}
