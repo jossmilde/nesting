@@ -9,6 +9,7 @@ import time
 from collections import defaultdict
 import math
 import logging
+import numpy as np
 
 # --- Instellingen (aanpassen indien gewenst) ---
 _OUTPUT_SVG = True  # Als True, wordt voor elk geplaatst onderdeel de SVG-paddata meegeleverd in de JSON-output.
@@ -697,7 +698,7 @@ def main(job_file_path):
                                 nearby_polygons_to_check = list(nearby_polygons_to_check)
                             except Exception:
                                 nearby_polygons_to_check = []
-                            if nearby_polygons_to_check and isinstance(nearby_polygons_to_check[0], int):
+                            if nearby_polygons_to_check and isinstance(nearby_polygons_to_check[0], (int, np.integer)):
                                 nearby_polygons_to_check = [placed_buffers[i] for i in nearby_polygons_to_check if i < len(placed_buffers)]
                         is_valid_final = True
                         for existing_buffered_poly in nearby_polygons_to_check:
