@@ -13,7 +13,10 @@ import numpy as np
 
 # --- Instellingen (aanpassen indien gewenst) ---
 _OUTPUT_SVG = True  # Als True, wordt voor elk geplaatst onderdeel de SVG-paddata meegeleverd in de JSON-output.
-_ENABLE_DEEP_DEBUG = True   # Zet op True voor volledige debug-output
+_ENABLE_DEEP_DEBUG = False  # Zet op True voor volledige debug-output
+# Overschrijf via omgevingsvariabele voor debugging
+if os.environ.get("NESTING_DEBUG") == "1":
+    _ENABLE_DEEP_DEBUG = True
 
 # --- Imports (incl. STRtree) en Constanten ---
 try:
@@ -669,7 +672,7 @@ def main(job_file_path):
                         logging.debug(f"      Geen IFP punten op {sheet['id']}.")
                         continue
                     unique_potential_points = {(round(p[0],4), round(p[1],4)) for p in potential_points_raw}
-                    sorted_candidate_points = sorted(list(unique_potential_points), key=lambda p: (p[1], p[0]))
+                    sorted_candidate_points = sorted(list(unique_potential_points), key=lambda p: (p[0], p[1]))
                     points_to_test = sorted_candidate_points
                     logging.debug(f"      Aantal IFP punten te testen: {len(points_to_test)} (van {len(sorted_candidate_points)})")
                     candidate_valid_area = sheet["sheet_polygon_with_margin"]
@@ -739,8 +742,13 @@ def main(job_file_path):
                                 "height_bbox": bbox_final["height"],
                                 "placed_shapely_polygon": candidate_poly_shapely
                             }
-                            best_placement_for_this_angle_sheet = current_placement_candidate
-                            break
+                            if best_placement_for_this_angle_sheet is None:
+                                best_placement_for_this_angle_sheet = current_placement_candidate
+                            else:
+                                curr = current_placement_candidate
+                                best = best_placement_for_this_angle_sheet
+                                if curr["x"] < best["x"] - TOLERANCE or (abs(curr["x"] - best["x"]) < TOLERANCE and curr["y"] < best["y"] - TOLERANCE):
+                                    best_placement_for_this_angle_sheet = curr
                     if best_placement_for_this_angle_sheet:
                         if best_placement_overall_for_part is None:
                             best_placement_overall_for_part = best_placement_for_this_angle_sheet
