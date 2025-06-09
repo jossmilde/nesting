@@ -77,5 +77,6 @@ to `stderr` so JSON output on `stdout` is unaffected.
 - `DEFAULT` – heuristic placement using inner‑fit polygons.
 - `RECTPACK` – rectangle packing based on bounding boxes.
 - `SVG_NEST` – experimental strategy that builds no‑fit polygons with Pyclipper and searches for feasible positions similar to the SVGNest project.
+- `SHELF` – places parts row by row, aligning bounding boxes to make efficient use of space.
 
 
