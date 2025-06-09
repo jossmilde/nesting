@@ -21,6 +21,7 @@ const uploadedFilesTable = uploadedFilesListDiv.querySelector('table');
 const uploadedFilesTBody = uploadedFilesTable?.querySelector('tbody');
 const noFilesMessage = document.getElementById('no-files-message');
 const startNestingBtn = document.getElementById('start-nesting-btn');
+const nestProgressBar = document.getElementById('nest-progress');
 const currentYearSpan = document.getElementById('current-year');
 const partToPartDistanceInput = document.getElementById('part-to-part-distance');
 const partToSheetDistanceInput = document.getElementById('part-to-sheet-distance');
@@ -65,6 +66,23 @@ let appState = {
     currentNestingResult: currentNestingResult,
     currentSheetIndex: currentSheetIndex
 };
+
+let progressTimer = null;
+function startProgress() {
+    if (!nestProgressBar) return;
+    nestProgressBar.value = 0;
+    nestProgressBar.style.display = 'block';
+    progressTimer = setInterval(() => {
+        nestProgressBar.value = (nestProgressBar.value + 1) % 100;
+    }, 100);
+}
+
+function stopProgress() {
+    if (!nestProgressBar) return;
+    if (progressTimer) clearInterval(progressTimer);
+    progressTimer = null;
+    nestProgressBar.style.display = 'none';
+}
 
 
 // --- DATA VERZAMEL FUNCTIE (hoort logisch hier) ---
@@ -248,6 +266,7 @@ async function handleStartNestingClick() {
 
     showStatus(elementRefs.statusMessagesDiv, "Nesting versturen...", "info");
     if(startNestingBtn) startNestingBtn.disabled = true;
+    startProgress();
     if (elementRefs.visualOutputDiv && elementRefs.visualOutputPlaceholder) { elementRefs.visualOutputDiv.innerHTML = ''; elementRefs.visualOutputDiv.appendChild(elementRefs.visualOutputPlaceholder); elementRefs.visualOutputPlaceholder.textContent = 'Nesting bezig...'; elementRefs.visualOutputPlaceholder.style.display = 'block'; }
     if (elementRefs.summaryDetailsDiv) elementRefs.summaryDetailsDiv.innerHTML = ''; if (elementRefs.summaryPlaceholder) elementRefs.summaryPlaceholder.style.display = 'block';
     resetSheetNavigation(elementRefs, appState); // Gebruik helper uit domManager
@@ -267,6 +286,7 @@ async function handleStartNestingClick() {
         if (elementRefs.visualOutputDiv && elementRefs.visualOutputDiv.children.length === 1 && elementRefs.visualOutputDiv.firstChild === elementRefs.visualOutputPlaceholder && elementRefs.visualOutputPlaceholder) { elementRefs.visualOutputPlaceholder.style.display = 'block';} else if(elementRefs.visualOutputDiv && elementRefs.visualOutputPlaceholder){elementRefs.visualOutputDiv.innerHTML = ''; elementRefs.visualOutputDiv.appendChild(elementRefs.visualOutputPlaceholder);}
     } finally {
         if(startNestingBtn) startNestingBtn.disabled = false;
+        stopProgress();
     }
 }
 
