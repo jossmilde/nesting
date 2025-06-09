@@ -42,6 +42,24 @@ ZERO_TOLERANCE = 1e-9
 INDEX_THRESHOLD = 10         # drempel voor STRtree-updates
 _OVERLAP_DIST_THRESHOLD = 1e-3  # extra drempel voor overlapcontrole
 
+# Timing setup
+timing_stats = defaultdict(lambda: {"total_time": 0.0, "call_count": 0})
+_timing_enabled = os.environ.get("NESTING_TIMING") == "1"
+
+def timed(func):
+    """Decorator to record execution time of heavy functions."""
+    def wrapper(*args, **kwargs):
+        if not _timing_enabled:
+            return func(*args, **kwargs)
+        start = time.time()
+        result = func(*args, **kwargs)
+        elapsed = time.time() - start
+        stat = timing_stats[func.__name__]
+        stat["total_time"] += elapsed
+        stat["call_count"] += 1
+        return result
+    return wrapper
+
 # --- Hulpfuncties ---
 
 def format_error(message, details=None):
@@ -78,6 +96,7 @@ def calculate_bounding_box(points):
         logging.error(f"ERROR calculating bbox: {bbox_err}...")
         return {"min_x": 0, "min_y": 0, "max_x": 0, "max_y": 0, "width": 0, "height": 0, "area": 0}
 
+@timed
 def create_shapely_polygon(outer_coords, hole_coords_list, part_id_for_log):
     if not outer_coords or len(outer_coords) < 3:
         logging.warning(f"Skipping {part_id_for_log}: Not enough outer coords.")
@@ -196,6 +215,7 @@ def scale_point_from_clipper(point):
 def scale_paths_from_clipper(paths):
     return [[scale_point_from_clipper(p) for p in path] for path in paths]
 
+@timed
 def shapely_to_clipper(polygon):
     if not polygon or polygon.is_empty or not polygon.is_valid:
         return []
@@ -235,6 +255,7 @@ def shapely_to_clipper(polygon):
         logging.error(f"Error in shapely_to_clipper: {e}")
         return []
 
+@timed
 def clipper_to_shapely(solution_paths):
     if not solution_paths:
         return None
@@ -286,6 +307,7 @@ def clipper_to_shapely(solution_paths):
             return max(valid_polys, key=lambda p: p.area)
 
 # --- Helper: Extra reductie voor vertexen (bijvoorbeeld voor een bijna-driehoek) ---
+@timed
 def reduce_polygon_vertices(poly, collinear_threshold=0.1):
     """
     Controleer de vertices en verwijder een punt als de afstand tussen dat punt en de lijn gevormd door zijn buren kleiner is dan de drempel.
@@ -321,6 +343,7 @@ def reduce_polygon_vertices(poly, collinear_threshold=0.1):
     return Polygon(reduced)
 
 # --- Automatische simplificatie ---
+@timed
 def auto_simplify(poly):
     """ Vereenvoudig een polygon op basis van 2% van de omtrek, met min tol 0.5 en max 5.0 mm. """
     perimeter = poly.length
@@ -329,6 +352,7 @@ def auto_simplify(poly):
     return simp_poly, tol, perimeter
 
 # --- Helper: Converteer Shapely polygon naar SVG path data ---
+@timed
 def polygon_to_svg(poly):
     """ Converteer een Shapely polygon naar een SVG path string (alleen de exterieur, geen holes). """
     coords = list(poly.exterior.coords)
@@ -339,6 +363,7 @@ def polygon_to_svg(poly):
     return path
 
 # --- Helper: evalueer kandidaatpunten ---
+@timed
 def evaluate_candidate_points(points_to_test, sheet, sheet_index, rotated_poly, rotated_ref_x, rotated_ref_y, rotation_angle, candidate_valid_area, candidate_buffer_amount):
     best_candidate = None
     for cand_idx, (px, py) in enumerate(points_to_test):
@@ -899,6 +924,17 @@ def main(job_file_path):
     logging.info("Resultaat naar stdout sturen.")
     logging.info(f"Statistieken: {json.dumps(statistics)}")
     logging.shutdown()
+    if _timing_enabled and timing_stats:
+        timing_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nesting_timing.log")
+        try:
+            with open(timing_file, "w", encoding="utf-8") as tf:
+                for fname, data in sorted(timing_stats.items()):
+                    total = data["total_time"]
+                    count = data["call_count"]
+                    avg = total / count if count else 0.0
+                    tf.write(f"{fname}: total={total:.6f}s avg={avg:.6f}s calls={count}\n")
+        except Exception as e:
+            logging.error(f"Failed to write timing file: {e}")
     print(json.dumps(result_json, separators=(',', ':')))
 
 if __name__ == "__main__":
