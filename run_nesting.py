@@ -459,6 +459,35 @@ def determine_candidate_angles(num_segments):
     else:
         return sorted({ round(i * 360.0 / num_segments, 2) for i in range(num_segments) })
 
+# --- Filter rotation angles based on allowRotation parameter ---
+def filter_angles_by_allow_rotation(angles, allow_rotation_type):
+    """Limit candidate angles according to the allowRotation setting.
+
+    Parameters
+    ----------
+    angles : list of float
+        The candidate rotation angles in degrees.
+    allow_rotation_type : str
+        "0" = only 0°, "1" = 0° and 180°, "2" = 0°, 90°, 180°, 270°,
+        "3" = free rotation (no filtering).
+    """
+    if allow_rotation_type == "3":
+        return sorted(list({round(a, 2) for a in angles}))
+
+    allowed = {0.0}
+    if allow_rotation_type in ("1", "2"):
+        allowed.add(180.0)
+    if allow_rotation_type == "2":
+        allowed.update({90.0, -90.0})
+
+    def _matches(a, target):
+        return abs(((a - target + 180) % 360) - 180) < 0.01
+
+    filtered = [a for a in angles if any(_matches(a, t) for t in allowed)]
+    if not filtered:
+        filtered = list(allowed)
+    return sorted(list({round(a, 2) for a in filtered}))
+
 # --- Simplified Rectpack based nesting ---
 def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spacing, sheet_margin, allow_rotation):
     """Nesting using the rectpack rectangle packing library.
@@ -807,10 +836,13 @@ def main(job_file_path):
         base_potential_angles = get_potential_rotation_angles(shapely_poly)
         if num_segments <= 10:
             candidate_angles = determine_candidate_angles(num_segments)
-            logging.debug(f"Automatisch bepaalde rotatiehoeken voor '{original_name}' (n={num_segments}): {candidate_angles}")
+            logging.debug(
+                f"Automatisch bepaalde rotatiehoeken voor '{original_name}' (n={num_segments}): {candidate_angles}"
+            )
             possible_angles = candidate_angles
         else:
             possible_angles = base_potential_angles
+        possible_angles = filter_angles_by_allow_rotation(possible_angles, allowed_rotation_type)
         logging.debug(f"  Toegestane rotaties: {possible_angles}")
         part_details[part_id] = {
             "originalName": original_name,
@@ -952,14 +984,7 @@ def main(job_file_path):
                 logging.info(f"[{part_idx+1}/{len(parts_to_place)}] Verwerken: {instance_id_log} ({original_name}) Dikte: {part_thickness}")
                 logging.debug(f"Onderdeel '{original_name}' (id: {part_id}) heeft {part_info.get('num_segments', 'N/A')} lijnsegmenten.")
                 reference_point = part_info["reference_point_0"]
-                base_potential_angles = part_info.get("potential_angles", [0.0])
-                num_segments = part_info.get("num_segments", 999)
-                if num_segments <= 10:
-                    candidate_angles = determine_candidate_angles(num_segments)
-                    logging.debug(f"Automatisch bepaalde rotatiehoeken voor '{original_name}' (n={num_segments}): {candidate_angles}")
-                    possible_angles = candidate_angles
-                else:
-                    possible_angles = base_potential_angles
+                possible_angles = part_info.get("potential_angles", [0.0])
                 logging.debug(f"  Toegestane rotaties: {possible_angles}")
                 best_placement_overall_for_part = None
                 target_sheets = available_sheets.get(part_thickness, [])
