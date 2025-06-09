@@ -602,6 +602,79 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
 
     return final_results, unplaced
 
+# --- Simplified SVGnest-like polygon nesting ---
+def nest_with_svg_nest(parts_to_place, part_details, available_sheets, part_spacing, sheet_margin, allow_rotation):
+    """Place polygons using a basic no-fit polygon approach."""
+    placements = []
+    unplaced = []
+    for part in parts_to_place:
+        part_id = part["original_id"]
+        info = part_details.get(part_id)
+        if not info:
+            unplaced.append(part)
+            continue
+        base_poly = info.get("shapely_polygon_0")
+        if not base_poly:
+            unplaced.append(part)
+            continue
+        thickness = part["thickness"]
+        candidate_angles = info.get("potential_angles", [0.0])
+        placed = False
+        for sheet in available_sheets.get(thickness, []):
+            # Calculate remaining free area on this sheet
+            free_area = sheet["sheet_polygon_with_margin"]
+            if sheet["placed_shapely_polygons_buffered"]:
+                try:
+                    occupied = unary_union(sheet["placed_shapely_polygons_buffered"])
+                    free_area = free_area.difference(occupied)
+                except Exception:
+                    for p in sheet["placed_shapely_polygons_buffered"]:
+                        free_area = free_area.difference(p)
+            if free_area.is_empty:
+                continue
+            for angle in candidate_angles:
+                rotated = rotate(base_poly, angle, origin=(0, 0), use_radians=False) if angle else base_poly
+                rxmin, rymin, _, _ = rotated.bounds
+                candidate_points = list(free_area.exterior.coords)[:-1]
+                for cx, cy in candidate_points:
+                    placed_poly = translate(rotated, cx - rxmin, cy - rymin)
+                    if free_area.contains(placed_poly):
+                        bbox_final = calculate_bounding_box(list(placed_poly.exterior.coords))
+                        placement_info = {
+                            "partInstanceId": part["instance_id"],
+                            "partId": part_id,
+                            "originalName": info.get("originalName", part_id),
+                            "sheetId": sheet["id"],
+                            "x_bl_bbox": bbox_final["min_x"],
+                            "y_bl_bbox": bbox_final["min_y"],
+                            "width_bbox": bbox_final["width"],
+                            "height_bbox": bbox_final["height"],
+                            "rotation": angle,
+                            "profile2d": info.get("profile"),
+                            "bbox": {
+                                "x": bbox_final["min_x"],
+                                "y": bbox_final["min_y"],
+                                "width": bbox_final["width"],
+                                "height": bbox_final["height"],
+                            },
+                        }
+                        if _OUTPUT_SVG:
+                            placement_info["svg"] = polygon_to_svg(placed_poly)
+                        placements.append(placement_info)
+                        sheet["placed_items"].append(placement_info)
+                        buffer_amt = (part_spacing / 2.0) + TOLERANCE
+                        buffered = placed_poly.buffer(buffer_amt, cap_style=1, join_style=1) if buffer_amt > ZERO_TOLERANCE else placed_poly
+                        sheet["placed_shapely_polygons_buffered"].append(buffered)
+                        placed = True
+                        break
+                if placed:
+                    break
+            if placed:
+                break
+        if not placed:
+            unplaced.append(part)
+    return placements, unplaced
+
 # --- Hoofdfunctie ---
 def main(job_file_path):
     # Logging setup
@@ -827,6 +900,15 @@ def main(job_file_path):
 
     if nesting_strategy == "RECTPACK":
         final_placements, unplaced_parts_from_nesting = nest_with_rectpack(
+            parts_to_place,
+            part_details,
+            available_sheets,
+            part_spacing,
+            sheet_margin,
+            allowed_rotation_type,
+        )
+    elif nesting_strategy == "SVG_NEST":
+        final_placements, unplaced_parts_from_nesting = nest_with_svg_nest(
             parts_to_place,
             part_details,
             available_sheets,
