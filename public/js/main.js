@@ -28,6 +28,7 @@ const partToSheetDistanceInput = document.getElementById('part-to-sheet-distance
 const allowRotationSelect = document.getElementById('allow-rotation');
 const allowMirroringCheckbox = document.getElementById('allow-mirroring');
 const nestingStrategySelect = document.getElementById('nesting-strategy');
+const nestingAlgorithmSelect = document.getElementById('nesting-algorithm');
 const enableDebugCheckbox = document.getElementById('enable-debug');
 const enableTimingCheckbox = document.getElementById('enable-timing');
 const visualOutputDiv = document.getElementById('visual-output');
@@ -47,7 +48,7 @@ const elementRefs = {
     visualOutputDiv, visualOutputPlaceholder, summaryDetailsDiv, summaryPlaceholder,
     prevSheetBtn, nextSheetBtn, sheetIndicatorSpan, downloadSvgBtn,
     partToPartDistanceInput, partToSheetDistanceInput, allowRotationSelect,
-    allowMirroringCheckbox, nestingStrategySelect,
+    allowMirroringCheckbox, nestingStrategySelect, nestingAlgorithmSelect,
     enableDebugCheckbox, enableTimingCheckbox
 };
 
@@ -145,7 +146,7 @@ function collectNestingJobData() {
 
          // Verzamel Parameters
          console.log("[Collect] Verzamelen parameters...");
-        jobData.parameters={partToPartDistance:parseFloat(elementRefs.partToPartDistanceInput?.value??5),partToSheetDistance:parseFloat(elementRefs.partToSheetDistanceInput?.value??10),allowRotation:elementRefs.allowRotationSelect?.value??"2",allowMirroring:elementRefs.allowMirroringCheckbox?.checked??false,strategy:elementRefs.nestingStrategySelect?.value??"balanced"};
+       jobData.parameters={partToPartDistance:parseFloat(elementRefs.partToPartDistanceInput?.value??5),partToSheetDistance:parseFloat(elementRefs.partToSheetDistanceInput?.value??10),allowRotation:elementRefs.allowRotationSelect?.value??"2",allowMirroring:elementRefs.allowMirroringCheckbox?.checked??false,strategy:elementRefs.nestingStrategySelect?.value??"balanced",nestingStrategy:elementRefs.nestingAlgorithmSelect?.value??"DEFAULT"};
         jobData.debug = elementRefs.enableDebugCheckbox?.checked ?? false;
         jobData.timing = elementRefs.enableTimingCheckbox?.checked ?? false;
 
