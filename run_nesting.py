@@ -761,14 +761,26 @@ def nest_with_shelf(parts_to_place, part_details, available_sheets, part_spacing
                 continue
 
             bbox = info.get("bbox_0", {})
-            w = bbox.get("width", 0.0)
-            h = bbox.get("height", 0.0)
+            orig_w = bbox.get("width", 0.0)
+            orig_h = bbox.get("height", 0.0)
             rotation = 0
 
-            if allow_rotation != "0" and w > h and h <= (sheet["width"] - 2 * sheet_margin):
-                if w > (sheet["width"] - 2 * sheet_margin) and h <= (sheet["width"] - 2 * sheet_margin):
-                    w, h = h, w
-                    rotation = 90
+            # Try both orientations when rotation is allowed and pick the one
+            # that yields the lowest shelf height while still fitting.
+            orientations = [(orig_w, orig_h, 0)]
+            if allow_rotation != "0":
+                orientations.append((orig_h, orig_w, 90))
+
+            viable = []
+            for ow, oh, ang in orientations:
+                if ow <= sheet["width"] - 2 * sheet_margin + TOLERANCE and oh <= sheet["height"] - 2 * sheet_margin + TOLERANCE:
+                    viable.append((ow, oh, ang))
+            if not viable:
+                unplaced.append(part)
+                continue
+
+            # Choose orientation with minimal height, then width
+            w, h, rotation = sorted(viable, key=lambda t: (t[1], t[0]))[0]
 
             w_pad = w + part_spacing
             h_pad = h + part_spacing
