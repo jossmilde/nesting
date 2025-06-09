@@ -640,7 +640,18 @@ def nest_with_svg_nest(parts_to_place, part_details, available_sheets, part_spac
             for angle in candidate_angles:
                 rotated = rotate(base_poly, angle, origin=(0, 0), use_radians=False) if angle else base_poly
                 rxmin, rymin, _, _ = rotated.bounds
-                candidate_points = list(free_area.exterior.coords)[:-1]
+                # If the remaining free area consists of multiple polygons,
+                # collect candidate coordinates from each polygon exterior.
+                candidate_points = []
+                if isinstance(free_area, Polygon):
+                    candidate_points.extend(list(free_area.exterior.coords)[:-1])
+                elif isinstance(free_area, MultiPolygon):
+                    for geom in free_area.geoms:
+                        candidate_points.extend(list(geom.exterior.coords)[:-1])
+                else:
+                    logging.debug(
+                        f"Skipping candidate point generation: unsupported geometry {free_area.geom_type}"
+                    )
                 for cx, cy in candidate_points:
                     placed_poly = translate(rotated, cx - rxmin, cy - rymin)
                     if free_area.contains(placed_poly):
