@@ -27,6 +27,8 @@ const partToSheetDistanceInput = document.getElementById('part-to-sheet-distance
 const allowRotationSelect = document.getElementById('allow-rotation');
 const allowMirroringCheckbox = document.getElementById('allow-mirroring');
 const nestingStrategySelect = document.getElementById('nesting-strategy');
+const enableDebugCheckbox = document.getElementById('enable-debug');
+const enableTimingCheckbox = document.getElementById('enable-timing');
 const visualOutputDiv = document.getElementById('visual-output');
 const visualOutputPlaceholder = document.getElementById('visual-output-placeholder');
 const summaryOutputDiv = document.getElementById('summary-output');
@@ -44,7 +46,8 @@ const elementRefs = {
     visualOutputDiv, visualOutputPlaceholder, summaryDetailsDiv, summaryPlaceholder,
     prevSheetBtn, nextSheetBtn, sheetIndicatorSpan, downloadSvgBtn,
     partToPartDistanceInput, partToSheetDistanceInput, allowRotationSelect,
-    allowMirroringCheckbox, nestingStrategySelect
+    allowMirroringCheckbox, nestingStrategySelect,
+    enableDebugCheckbox, enableTimingCheckbox
 };
 
 // --- Globale staat ---
@@ -124,7 +127,9 @@ function collectNestingJobData() {
 
          // Verzamel Parameters
          console.log("[Collect] Verzamelen parameters...");
-         jobData.parameters={partToPartDistance:parseFloat(elementRefs.partToPartDistanceInput?.value??5),partToSheetDistance:parseFloat(elementRefs.partToSheetDistanceInput?.value??10),allowRotation:elementRefs.allowRotationSelect?.value??"2",allowMirroring:elementRefs.allowMirroringCheckbox?.checked??false,strategy:elementRefs.nestingStrategySelect?.value??"balanced"};
+        jobData.parameters={partToPartDistance:parseFloat(elementRefs.partToPartDistanceInput?.value??5),partToSheetDistance:parseFloat(elementRefs.partToSheetDistanceInput?.value??10),allowRotation:elementRefs.allowRotationSelect?.value??"2",allowMirroring:elementRefs.allowMirroringCheckbox?.checked??false,strategy:elementRefs.nestingStrategySelect?.value??"balanced"};
+        jobData.debug = elementRefs.enableDebugCheckbox?.checked ?? false;
+        jobData.timing = elementRefs.enableTimingCheckbox?.checked ?? false;
 
          // Validatie
          console.log("[Collect] Start validatie...");
