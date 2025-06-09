@@ -720,6 +720,119 @@ def nest_with_svg_nest(parts_to_place, part_details, available_sheets, part_spac
             unplaced.append(part)
     return placements, unplaced
 
+# --- Simple shelf based nesting using bounding boxes ---
+def nest_with_shelf(parts_to_place, part_details, available_sheets, part_spacing, sheet_margin, allow_rotation):
+    """Place parts row by row aligning bounding boxes.
+
+    This algorithm is much simpler than the default polygon approach but it
+    tends to align parts nicely and makes reasonably good use of the remaining
+    space by filling each shelf before starting a new row.
+    """
+
+    placements = []
+    unplaced = []
+
+    parts_by_thickness = defaultdict(list)
+    for part in parts_to_place:
+        parts_by_thickness[part["thickness"]].append(part)
+
+    for thickness, part_list in parts_by_thickness.items():
+        sheets = available_sheets.get(thickness, [])
+        if not sheets:
+            unplaced.extend(part_list)
+            continue
+
+        part_list.sort(
+            key=lambda p: part_details[p["original_id"]]["bbox_0"].get("height", 0.0),
+            reverse=True,
+        )
+
+        sheet_index = 0
+        sheet = sheets[sheet_index]
+        x = sheet_margin
+        y = sheet_margin
+        shelf_height = 0
+
+        while part_list:
+            part = part_list.pop(0)
+            info = part_details.get(part["original_id"])
+            if not info:
+                unplaced.append(part)
+                continue
+
+            bbox = info.get("bbox_0", {})
+            w = bbox.get("width", 0.0)
+            h = bbox.get("height", 0.0)
+            rotation = 0
+
+            if allow_rotation != "0" and w > h and h <= (sheet["width"] - 2 * sheet_margin):
+                if w > (sheet["width"] - 2 * sheet_margin) and h <= (sheet["width"] - 2 * sheet_margin):
+                    w, h = h, w
+                    rotation = 90
+
+            w_pad = w + part_spacing
+            h_pad = h + part_spacing
+
+            if x + w_pad > sheet["width"] - sheet_margin + TOLERANCE:
+                x = sheet_margin
+                y += shelf_height
+                shelf_height = 0
+
+            if y + h_pad > sheet["height"] - sheet_margin + TOLERANCE:
+                sheet_index += 1
+                if sheet_index >= len(sheets):
+                    unplaced.append(part)
+                    unplaced.extend(part_list)
+                    part_list = []
+                    break
+                sheet = sheets[sheet_index]
+                x = sheet_margin
+                y = sheet_margin
+                shelf_height = 0
+
+            rotated_poly = (
+                rotate(info["shapely_polygon_0"], rotation, origin=(0, 0), use_radians=False)
+                if rotation
+                else info["shapely_polygon_0"]
+            )
+            rxmin, rymin, _, _ = rotated_poly.bounds
+            placed_poly = translate(rotated_poly, x + part_spacing / 2.0 - rxmin, y + part_spacing / 2.0 - rymin)
+            bbox_final = calculate_bounding_box(list(placed_poly.exterior.coords))
+
+            placement_info = {
+                "partInstanceId": part["instance_id"],
+                "partId": part["original_id"],
+                "originalName": info.get("originalName", part["original_id"]),
+                "sheetId": sheet["id"],
+                "x_bl_bbox": bbox_final["min_x"],
+                "y_bl_bbox": bbox_final["min_y"],
+                "width_bbox": bbox_final["width"],
+                "height_bbox": bbox_final["height"],
+                "rotation": rotation,
+                "profile2d": info.get("profile"),
+                "bbox": {
+                    "x": bbox_final["min_x"],
+                    "y": bbox_final["min_y"],
+                    "width": bbox_final["width"],
+                    "height": bbox_final["height"],
+                },
+            }
+            if _OUTPUT_SVG:
+                placement_info["svg"] = polygon_to_svg(placed_poly)
+
+            placements.append(placement_info)
+            sheet["placed_items"].append(placement_info)
+            buffer_amt = (part_spacing / 2.0) + TOLERANCE
+            buffered = (
+                placed_poly.buffer(buffer_amt, cap_style=1, join_style=1) if buffer_amt > ZERO_TOLERANCE else placed_poly
+            )
+            sheet["placed_shapely_polygons_buffered"].append(buffered)
+
+            x += w_pad
+            shelf_height = max(shelf_height, h_pad)
+
+    return placements, unplaced
+
 # --- Hoofdfunctie ---
 def main(job_file_path):
     # Logging setup
@@ -957,6 +1070,15 @@ def main(job_file_path):
         )
     elif nesting_strategy == "SVG_NEST":
         final_placements, unplaced_parts_from_nesting = nest_with_svg_nest(
+            parts_to_place,
+            part_details,
+            available_sheets,
+            part_spacing,
+            sheet_margin,
+            allowed_rotation_type,
+        )
+    elif nesting_strategy == "SHELF":
+        final_placements, unplaced_parts_from_nesting = nest_with_shelf(
             parts_to_place,
             part_details,
             available_sheets,
