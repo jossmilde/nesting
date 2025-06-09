@@ -474,6 +474,9 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
         return [], parts_to_place
 
     packer = rectpack.newPacker(rotation=(allow_rotation != "0"))
+    logging.debug(
+        "Rectpack newPacker created with rotation=%s", allow_rotation != "0"
+    )
 
     sheet_lookup = {}
     for thickness, sheets in available_sheets.items():
@@ -481,6 +484,13 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
             w = max(0.0, sheet["width"] - 2 * sheet_margin)
             h = max(0.0, sheet["height"] - 2 * sheet_margin)
             packer.add_bin(w, h, bid=sheet["id"])
+            logging.debug(
+                "Added bin id=%s size=%sx%s (margin=%s)",
+                sheet["id"],
+                w,
+                h,
+                sheet_margin,
+            )
             sheet_lookup[sheet["id"]] = sheet
 
     for part in parts_to_place:
@@ -491,8 +501,17 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
         w = bbox.get("width", 0.0) + part_spacing
         h = bbox.get("height", 0.0) + part_spacing
         packer.add_rect(w, h, rid=part["instance_id"])
+        logging.debug(
+            "Added rect id=%s size=%sx%s (spacing=%s)",
+            part["instance_id"],
+            w,
+            h,
+            part_spacing,
+        )
 
+    logging.debug("Starting rectpack.pack()")
     packer.pack()
+    logging.debug("Finished rectpack.pack()")
 
     placements = []
     placed_ids = set()
@@ -516,8 +535,22 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
                 "y": rect.y + sheet_margin,
                 "rotation": rotation,
             })
+            logging.debug(
+                "Placed %s on sheet %s at (%s,%s) size=%sx%s rot=%s",
+                rid,
+                sheet_id,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                rotation,
+            )
 
     unplaced = [p for p in parts_to_place if p["instance_id"] not in placed_ids]
+    if unplaced:
+        logging.debug(
+            "Unplaced parts after rectpack: %s", [p["instance_id"] for p in unplaced]
+        )
     return placements, unplaced
 
 # --- Hoofdfunctie ---
