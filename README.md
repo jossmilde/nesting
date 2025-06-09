@@ -6,3 +6,10 @@ This repository contains a small demo that converts uploaded STEP files into 2D 
 
 Every part and sheet must specify a numerical `thickness`. The nesting script will abort if it encounters a part with a thickness for which no sheet is defined. Ensure the thickness values match exactly.
 
+## Debug Logging
+
+By default the Python nesting script only logs high‑level information. Set the
+environment variable `NESTING_DEBUG=1` before running `run_nesting.py` to enable
+detailed debug output. This can help diagnose placement issues and analyse the
+candidate search process.
+
