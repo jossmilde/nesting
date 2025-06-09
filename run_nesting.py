@@ -477,9 +477,14 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
         logging.error(f"rectpack library missing: {e}")
         return [], parts_to_place
 
-    packer = rectpack.newPacker(rotation=(allow_rotation != "0"))
+    packer = rectpack.newPacker(
+        rotation=(allow_rotation != "0"),
+        sort_algo=rectpack.SORT_AREA,
+        pack_algo=rectpack.MaxRectsBssf,
+    )
     logging.debug(
-        "Rectpack newPacker created with rotation=%s", allow_rotation != "0"
+        "Rectpack newPacker created with rotation=%s pack_algo=MaxRectsBssf",
+        allow_rotation != "0",
     )
 
     sheet_lookup = {}
