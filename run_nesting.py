@@ -459,6 +459,67 @@ def determine_candidate_angles(num_segments):
     else:
         return sorted({ round(i * 360.0 / num_segments, 2) for i in range(num_segments) })
 
+# --- Simplified Rectpack based nesting ---
+def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spacing, sheet_margin, allow_rotation):
+    """Nesting using the rectpack rectangle packing library.
+
+    This approximates each part by its bounding box and packs them on the
+    available sheets. Only 90 degree rotation is considered when allow_rotation
+    is not "0".
+    """
+    try:
+        import rectpack
+    except Exception as e:
+        logging.error(f"rectpack library missing: {e}")
+        return [], parts_to_place
+
+    packer = rectpack.newPacker(rotation=(allow_rotation != "0"))
+
+    sheet_lookup = {}
+    for thickness, sheets in available_sheets.items():
+        for sheet in sheets:
+            w = max(0.0, sheet["width"] - 2 * sheet_margin)
+            h = max(0.0, sheet["height"] - 2 * sheet_margin)
+            packer.add_bin(w, h, bid=sheet["id"])
+            sheet_lookup[sheet["id"]] = sheet
+
+    for part in parts_to_place:
+        info = part_details.get(part["original_id"])
+        if not info:
+            continue
+        bbox = info.get("bbox_0", {})
+        w = bbox.get("width", 0.0) + part_spacing
+        h = bbox.get("height", 0.0) + part_spacing
+        packer.add_rect(w, h, rid=part["instance_id"])
+
+    packer.pack()
+
+    placements = []
+    placed_ids = set()
+    for abin in packer:
+        sheet_id = getattr(abin, "bid", None)
+        for rect in abin:
+            rid = rect.rid
+            placed_ids.add(rid)
+            orig_id = rid.rsplit("_inst_", 1)[0]
+            info = part_details.get(orig_id, {})
+            bbox = info.get("bbox_0", {})
+            rotation = 0
+            w_exp = bbox.get("width", 0.0) + part_spacing
+            h_exp = bbox.get("height", 0.0) + part_spacing
+            if abs(rect.width - h_exp) < TOLERANCE and abs(rect.height - w_exp) < TOLERANCE:
+                rotation = 90
+            placements.append({
+                "id": rid,
+                "sheet_id": sheet_id,
+                "x": rect.x + sheet_margin,
+                "y": rect.y + sheet_margin,
+                "rotation": rotation,
+            })
+
+    unplaced = [p for p in parts_to_place if p["instance_id"] not in placed_ids]
+    return placements, unplaced
+
 # --- Hoofdfunctie ---
 def main(job_file_path):
     # Logging setup
@@ -508,7 +569,10 @@ def main(job_file_path):
     sheet_margin = max(0.0, parameters.get("partToSheetDistance", 0.0))
     allowed_rotation_type = str(parameters.get("allowRotation", "2"))
     best_fit_score_strategy = parameters.get("bestFitScore", "YX").upper()
-    logging.info(f"Parameters: partSpacing={part_spacing}, sheetMargin={sheet_margin}, allowRotation='{allowed_rotation_type}', bestFitScore='{best_fit_score_strategy}', maxIfpPoints=NO_LIMIT_TEST")
+    nesting_strategy = parameters.get("nestingStrategy", "DEFAULT").upper()
+    logging.info(
+        f"Parameters: partSpacing={part_spacing}, sheetMargin={sheet_margin}, allowRotation='{allowed_rotation_type}', bestFitScore='{best_fit_score_strategy}', strategy='{nesting_strategy}', maxIfpPoints=NO_LIMIT_TEST"
+    )
 
     # Data voorbereiden
     logging.info("Data voorbereiden...")
@@ -678,211 +742,222 @@ def main(job_file_path):
         parts_to_place.sort(key=lambda p: part_details[p["original_id"]]["area"], reverse=True)
     except Exception as sort_err:
         logging.warning(f"Sorteren mislukt: {sort_err}")
-    for part_idx, part_instance in enumerate(
-            tqdm(parts_to_place, desc="Nesting parts", unit="part", file=sys.stderr)):
-        part_id = part_instance["original_id"]
-        part_thickness = part_instance["thickness"]
-        instance_id_log = part_instance["instance_id"]
-        part_info = part_details.get(part_id)
-        if not part_info:
-            logging.error(f"Consistentiefout: Details {instance_id_log}. Skip.")
-            unplaced_parts_from_nesting.append(part_instance)
-            continue
-        original_name = part_info["originalName"]
-        original_shapely_polygon = part_info.get("shapely_polygon_0")
-        if not original_shapely_polygon:
-            logging.error(f"Consistentiefout: Poly {instance_id_log}. Skip.")
-            unplaced_parts_from_nesting.append(part_instance)
-            continue
-        logging.info(f"[{part_idx+1}/{len(parts_to_place)}] Verwerken: {instance_id_log} ({original_name}) Dikte: {part_thickness}")
-        logging.debug(f"Onderdeel '{original_name}' (id: {part_id}) heeft {part_info.get('num_segments', 'N/A')} lijnsegmenten.")
-        reference_point = part_info["reference_point_0"]
-        base_potential_angles = part_info.get("potential_angles", [0.0])
-        num_segments = part_info.get("num_segments", 999)
-        if num_segments <= 10:
-            candidate_angles = determine_candidate_angles(num_segments)
-            logging.debug(f"Automatisch bepaalde rotatiehoeken voor '{original_name}' (n={num_segments}): {candidate_angles}")
-            possible_angles = candidate_angles
-        else:
-            possible_angles = base_potential_angles
-        logging.debug(f"  Toegestane rotaties: {possible_angles}")
-        best_placement_overall_for_part = None
-        target_sheets = available_sheets.get(part_thickness, [])
-        if not target_sheets:
-            error_msg = (
-                f"Geen platen beschikbaar voor dikte {part_thickness}. "
-                "Onderdelen en platen moeten dezelfde thickness hebben."
-            )
-            format_error(error_msg)
-        rotated_cache = {}
-        for angle in possible_angles:
-            if angle not in rotated_cache:
-                try:
-                    rotated_poly = rotate(original_shapely_polygon, angle, origin=(0,0), use_radians=False)
-                    rotated_ref = rotate(Point(reference_point), angle, origin=(0,0), use_radians=False)
-                    rotated_cache[angle] = (rotated_poly, rotated_ref.x, rotated_ref.y)
-                except Exception as rotate_err:
-                    logging.error(f"  Rotatie {instance_id_log} R:{angle} mislukt: {rotate_err}.")
+
+    if nesting_strategy == "RECTPACK":
+        final_placements, unplaced_parts_from_nesting = nest_with_rectpack(
+            parts_to_place,
+            part_details,
+            available_sheets,
+            part_spacing,
+            sheet_margin,
+            allowed_rotation_type,
+        )
+    else:
+            for part_idx, part_instance in enumerate(
+                    tqdm(parts_to_place, desc="Nesting parts", unit="part", file=sys.stderr)):
+                part_id = part_instance["original_id"]
+                part_thickness = part_instance["thickness"]
+                instance_id_log = part_instance["instance_id"]
+                part_info = part_details.get(part_id)
+                if not part_info:
+                    logging.error(f"Consistentiefout: Details {instance_id_log}. Skip.")
+                    unplaced_parts_from_nesting.append(part_instance)
                     continue
-            rotated_shapely_polygon, rotated_ref_offset_x, rotated_ref_offset_y = rotated_cache[angle]
-            for sheet_index, sheet in enumerate(target_sheets):
-                logging.debug(f"    Checken plaat {sheet['id']} ({sheet_index+1}/{len(target_sheets)})")
-                try:
-                    pc = pyclipper.Pyclipper()
-                    sheet_clipper_paths = sheet["sheet_clipper_paths"]
-                    pc.AddPaths(sheet_clipper_paths, pyclipper.PT_SUBJECT, True)
-                    if sheet["placed_shapely_polygons_buffered"]:
+                original_name = part_info["originalName"]
+                original_shapely_polygon = part_info.get("shapely_polygon_0")
+                if not original_shapely_polygon:
+                    logging.error(f"Consistentiefout: Poly {instance_id_log}. Skip.")
+                    unplaced_parts_from_nesting.append(part_instance)
+                    continue
+                logging.info(f"[{part_idx+1}/{len(parts_to_place)}] Verwerken: {instance_id_log} ({original_name}) Dikte: {part_thickness}")
+                logging.debug(f"Onderdeel '{original_name}' (id: {part_id}) heeft {part_info.get('num_segments', 'N/A')} lijnsegmenten.")
+                reference_point = part_info["reference_point_0"]
+                base_potential_angles = part_info.get("potential_angles", [0.0])
+                num_segments = part_info.get("num_segments", 999)
+                if num_segments <= 10:
+                    candidate_angles = determine_candidate_angles(num_segments)
+                    logging.debug(f"Automatisch bepaalde rotatiehoeken voor '{original_name}' (n={num_segments}): {candidate_angles}")
+                    possible_angles = candidate_angles
+                else:
+                    possible_angles = base_potential_angles
+                logging.debug(f"  Toegestane rotaties: {possible_angles}")
+                best_placement_overall_for_part = None
+                target_sheets = available_sheets.get(part_thickness, [])
+                if not target_sheets:
+                    error_msg = (
+                        f"Geen platen beschikbaar voor dikte {part_thickness}. "
+                        "Onderdelen en platen moeten dezelfde thickness hebben."
+                    )
+                    format_error(error_msg)
+                rotated_cache = {}
+                for angle in possible_angles:
+                    if angle not in rotated_cache:
                         try:
-                            forbidden_geom_shapely = unary_union(sheet["placed_shapely_polygons_buffered"])
-                        except Exception as union_err:
-                            logging.error(f"  Error union buffers sheet {sheet['id']}: {union_err}. Adding individually.")
-                            forbidden_geom_shapely = None
-                        if forbidden_geom_shapely and forbidden_geom_shapely.is_valid and not forbidden_geom_shapely.is_empty:
-                            all_forbidden_paths = shapely_to_clipper(forbidden_geom_shapely)
-                            if all_forbidden_paths:
-                                pc.AddPaths(all_forbidden_paths, pyclipper.PT_CLIP, True)
-                        else:
-                            all_forbidden_paths = []
-                            logging.warning(f"  Union buffers mislukt/empty sheet {sheet['id']}. Adding individually.")
-                            for buff_poly in sheet["placed_shapely_polygons_buffered"]:
-                                all_forbidden_paths.extend(shapely_to_clipper(buff_poly))
-                            if all_forbidden_paths:
-                                pc.AddPaths(all_forbidden_paths, pyclipper.PT_CLIP, True)
-                    free_space_paths = pc.Execute(pyclipper.CT_DIFFERENCE, pyclipper.PFT_NONZERO, pyclipper.PFT_NONZERO)
-                    if not free_space_paths:
-                        logging.debug(f"      Geen vrije ruimte op plaat {sheet['id']}.")
-                        continue
-                    try:
-                        pco_ifp = pyclipper.PyclipperOffset()
-                        pco_ifp.AddPaths(free_space_paths, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
-                        inner_fit_margin = max((part_spacing/2.0)+TOLERANCE, 0.01) * CLIPPER_SCALE
-                        ifp_paths = pco_ifp.Execute(-inner_fit_margin)
-                    except pyclipper.ClipperException as clip_ex:
-                        logging.warning(f"  Pyclipper offset (IFP) exception sheet {sheet['id']}: {clip_ex}.")
-                        continue
-                    except Exception as ifp_err:
-                        logging.error(f"  Fout bij IFP berekening sheet {sheet['id']}: {ifp_err}.")
-                        continue
-                    if not ifp_paths:
-                        logging.debug(f"      IFP leeg na krimp op plaat {sheet['id']}.")
-                        continue
-                    ifp_shapely = clipper_to_shapely(ifp_paths)
-                    if not ifp_shapely or ifp_shapely.is_empty:
-                        logging.debug(f"      Kon IFP paden niet naar Shapely converteren op {sheet['id']}.")
-                        continue
-                    existing_candidate_points = sheet.get("candidate_points", [])
-                    candidate_valid_area = sheet["sheet_polygon_with_margin"]
-                    candidate_buffer_amount = (part_spacing/2.0) + TOLERANCE
-                    best_placement_for_this_angle_sheet = None
-                    if existing_candidate_points:
-                        unique_cache = sorted(list({(round(p[0],4), round(p[1],4)) for p in existing_candidate_points}), key=lambda p: (p[0], p[1]))
-                        logging.debug(f"      Cached punten te testen: {len(unique_cache)}")
-                        best_placement_for_this_angle_sheet = evaluate_candidate_points(unique_cache, sheet, sheet_index, rotated_shapely_polygon, rotated_ref_offset_x, rotated_ref_offset_y, angle, candidate_valid_area, candidate_buffer_amount)
-                    if best_placement_for_this_angle_sheet is None:
-                        potential_points_raw = []
-                        geoms_to_process = []
-                        if isinstance(ifp_shapely, Polygon):
-                            geoms_to_process.append(ifp_shapely)
-                        elif isinstance(ifp_shapely, MultiPolygon):
-                            geoms_to_process.extend(list(ifp_shapely.geoms))
-                        for geom in geoms_to_process:
-                            if isinstance(geom, Polygon) and not geom.is_empty:
-                                potential_points_raw.extend(list(geom.exterior.coords)[:-1])
-                        if not potential_points_raw:
-                            logging.debug(f"      Geen IFP punten op {sheet['id']}.")
+                            rotated_poly = rotate(original_shapely_polygon, angle, origin=(0,0), use_radians=False)
+                            rotated_ref = rotate(Point(reference_point), angle, origin=(0,0), use_radians=False)
+                            rotated_cache[angle] = (rotated_poly, rotated_ref.x, rotated_ref.y)
+                        except Exception as rotate_err:
+                            logging.error(f"  Rotatie {instance_id_log} R:{angle} mislukt: {rotate_err}.")
                             continue
-                        unique_potential_points = {(round(p[0],4), round(p[1],4)) for p in potential_points_raw}
-                        sorted_candidate_points = sorted(list(unique_potential_points), key=lambda p: (p[0], p[1]))
-                        logging.debug(f"      Aantal IFP punten te testen: {len(sorted_candidate_points)}")
-                        best_placement_for_this_angle_sheet = evaluate_candidate_points(sorted_candidate_points, sheet, sheet_index, rotated_shapely_polygon, rotated_ref_offset_x, rotated_ref_offset_y, angle, candidate_valid_area, candidate_buffer_amount)
-                    if best_placement_for_this_angle_sheet:
-                        if best_placement_overall_for_part is None:
-                            best_placement_overall_for_part = best_placement_for_this_angle_sheet
-                        else:
-                            curr = best_placement_for_this_angle_sheet
-                            best = best_placement_overall_for_part
-                            if best_fit_score_strategy == "ORIGINDIST":
-                                if (curr["x"]**2+curr["y"]**2) < (best["x"]**2+best["y"]**2) - TOLERANCE:
-                                    best_placement_overall_for_part = curr
-                            elif best_fit_score_strategy == "SHEETYX":
-                                if curr["sheet_index"] < best["sheet_index"]:
-                                    best_placement_overall_for_part = curr
-                                elif curr["sheet_index"] == best["sheet_index"]:
-                                    if curr["y"] < best["y"] - TOLERANCE or (abs(curr["y"] - best["y"]) < TOLERANCE and curr["x"] < best["x"] - TOLERANCE):
-                                        best_placement_overall_for_part = curr
-                            else:
-                                if curr["y"] < best["y"] - TOLERANCE or (abs(curr["y"]-best["y"])<TOLERANCE and curr["x"]<best["x"]-TOLERANCE):
-                                    best_placement_overall_for_part = curr
-                except Exception as place_error:
-                    logging.error(f"  Fout checken plaat {sheet['id']} hoek {angle}: {place_error}\n{traceback.format_exc()}")
-                    continue
-        if best_placement_overall_for_part:
-            chosen_placement = best_placement_overall_for_part
-            sheet_to_place_on = chosen_placement["sheet_instance"]
-            final_poly = chosen_placement["placed_shapely_polygon"]
-            final_angle = chosen_placement["angle"]
-            final_x = chosen_placement["x"]
-            final_y = chosen_placement["y"]
-            final_w = chosen_placement["width_bbox"]
-            final_h = chosen_placement["height_bbox"]
-            placement_info = {
-                "partInstanceId": instance_id_log,
-                "partId": part_id,
-                "originalName": original_name,
-                "sheetId": sheet_to_place_on["id"],
-                "x_bl_bbox": final_x,
-                "y_bl_bbox": final_y,
-                "width_bbox": final_w,
-                "height_bbox": final_h,
-                "rotation": final_angle,
-                "profile2d": part_info.get("profile"),
-                "bbox": {"x": final_x, "y": final_y, "width": final_w, "height": final_h}
-            }
-            # Indien SVG-output gewenst, voeg de SVG paddata toe (alleen de exterieur)
-            if _OUTPUT_SVG:
-                placement_info["svg"] = polygon_to_svg(final_poly)
-                logging.debug(f"Placement {instance_id_log} SVG: {placement_info['svg']}")
-            final_placements.append(placement_info)
-            sheet_to_place_on["placed_items"].append(placement_info)
-            sheet_to_place_on["placed_original_polygons"].append(final_poly)
-            if (part_spacing/2.0+TOLERANCE) > ZERO_TOLERANCE:
-                buffered_for_check = final_poly.buffer((part_spacing/2.0+TOLERANCE), cap_style=1, join_style=1)
-                if not buffered_for_check.is_valid or buffered_for_check.is_empty:
-                    logging.warning(f"  Buffer ongeldig {instance_id_log}. Fallback.")
-                    buffered_for_check = final_poly
-            else:
-                buffered_for_check = final_poly
-            sheet_to_place_on["placed_shapely_polygons_buffered"].append(buffered_for_check)
-            if len(sheet_to_place_on["placed_shapely_polygons_buffered"]) % INDEX_THRESHOLD == 0:
-                try:
-                    sheet_to_place_on["buffered_polygon_tree"] = STRtree(sheet_to_place_on["placed_shapely_polygons_buffered"])
-                    logging.debug(f"  STRtree bijgewerkt sheet {sheet_to_place_on['id']}, {len(sheet_to_place_on['placed_shapely_polygons_buffered'])} items.")
-                except Exception as tree_error:
-                    logging.error(f"  Fout update STRtree {sheet_to_place_on['id']}: {tree_error}")
-                    sheet_to_place_on["buffered_polygon_tree"] = None
-            # Update candidate points for bottom-left placement
-            cp_list = sheet_to_place_on.get("candidate_points", [])
-            cp_list.append((final_x + final_w + part_spacing, final_y))
-            cp_list.append((final_x, final_y + final_h + part_spacing))
-            valid_area = sheet_to_place_on["sheet_polygon_with_margin"]
-            new_list = []
-            for cx, cy in cp_list:
-                pt = Point(cx, cy)
-                if not valid_area.contains(pt):
-                    continue
-                overlap = False
-                for buff in sheet_to_place_on["placed_shapely_polygons_buffered"]:
-                    if pt.within(buff):
-                        overlap = True
-                        break
-                if not overlap:
-                    new_list.append((round(cx,4), round(cy,4)))
-            # remove duplicates and sort by x,y
-            sheet_to_place_on["candidate_points"] = sorted(list({(x,y) for x,y in new_list}), key=lambda p: (p[0], p[1]))
-            logging.info(f"  ==> Geplaatst (TEST NoLimit): {instance_id_log} op {sheet_to_place_on['id']} @ ({final_x:.1f}, {final_y:.1f}) R:{final_angle:.1f}")
-        else:
-            unplaced_parts_from_nesting.append(part_instance)
-            logging.warning(f"  Kon {instance_id_log} ({original_name}) niet plaatsen (geen geldige positie).")
+                    rotated_shapely_polygon, rotated_ref_offset_x, rotated_ref_offset_y = rotated_cache[angle]
+                    for sheet_index, sheet in enumerate(target_sheets):
+                        logging.debug(f"    Checken plaat {sheet['id']} ({sheet_index+1}/{len(target_sheets)})")
+                        try:
+                            pc = pyclipper.Pyclipper()
+                            sheet_clipper_paths = sheet["sheet_clipper_paths"]
+                            pc.AddPaths(sheet_clipper_paths, pyclipper.PT_SUBJECT, True)
+                            if sheet["placed_shapely_polygons_buffered"]:
+                                try:
+                                    forbidden_geom_shapely = unary_union(sheet["placed_shapely_polygons_buffered"])
+                                except Exception as union_err:
+                                    logging.error(f"  Error union buffers sheet {sheet['id']}: {union_err}. Adding individually.")
+                                    forbidden_geom_shapely = None
+                                if forbidden_geom_shapely and forbidden_geom_shapely.is_valid and not forbidden_geom_shapely.is_empty:
+                                    all_forbidden_paths = shapely_to_clipper(forbidden_geom_shapely)
+                                    if all_forbidden_paths:
+                                        pc.AddPaths(all_forbidden_paths, pyclipper.PT_CLIP, True)
+                                else:
+                                    all_forbidden_paths = []
+                                    logging.warning(f"  Union buffers mislukt/empty sheet {sheet['id']}. Adding individually.")
+                                    for buff_poly in sheet["placed_shapely_polygons_buffered"]:
+                                        all_forbidden_paths.extend(shapely_to_clipper(buff_poly))
+                                    if all_forbidden_paths:
+                                        pc.AddPaths(all_forbidden_paths, pyclipper.PT_CLIP, True)
+                            free_space_paths = pc.Execute(pyclipper.CT_DIFFERENCE, pyclipper.PFT_NONZERO, pyclipper.PFT_NONZERO)
+                            if not free_space_paths:
+                                logging.debug(f"      Geen vrije ruimte op plaat {sheet['id']}.")
+                                continue
+                            try:
+                                pco_ifp = pyclipper.PyclipperOffset()
+                                pco_ifp.AddPaths(free_space_paths, pyclipper.JT_ROUND, pyclipper.ET_CLOSEDPOLYGON)
+                                inner_fit_margin = max((part_spacing/2.0)+TOLERANCE, 0.01) * CLIPPER_SCALE
+                                ifp_paths = pco_ifp.Execute(-inner_fit_margin)
+                            except pyclipper.ClipperException as clip_ex:
+                                logging.warning(f"  Pyclipper offset (IFP) exception sheet {sheet['id']}: {clip_ex}.")
+                                continue
+                            except Exception as ifp_err:
+                                logging.error(f"  Fout bij IFP berekening sheet {sheet['id']}: {ifp_err}.")
+                                continue
+                            if not ifp_paths:
+                                logging.debug(f"      IFP leeg na krimp op plaat {sheet['id']}.")
+                                continue
+                            ifp_shapely = clipper_to_shapely(ifp_paths)
+                            if not ifp_shapely or ifp_shapely.is_empty:
+                                logging.debug(f"      Kon IFP paden niet naar Shapely converteren op {sheet['id']}.")
+                                continue
+                            existing_candidate_points = sheet.get("candidate_points", [])
+                            candidate_valid_area = sheet["sheet_polygon_with_margin"]
+                            candidate_buffer_amount = (part_spacing/2.0) + TOLERANCE
+                            best_placement_for_this_angle_sheet = None
+                            if existing_candidate_points:
+                                unique_cache = sorted(list({(round(p[0],4), round(p[1],4)) for p in existing_candidate_points}), key=lambda p: (p[0], p[1]))
+                                logging.debug(f"      Cached punten te testen: {len(unique_cache)}")
+                                best_placement_for_this_angle_sheet = evaluate_candidate_points(unique_cache, sheet, sheet_index, rotated_shapely_polygon, rotated_ref_offset_x, rotated_ref_offset_y, angle, candidate_valid_area, candidate_buffer_amount)
+                            if best_placement_for_this_angle_sheet is None:
+                                potential_points_raw = []
+                                geoms_to_process = []
+                                if isinstance(ifp_shapely, Polygon):
+                                    geoms_to_process.append(ifp_shapely)
+                                elif isinstance(ifp_shapely, MultiPolygon):
+                                    geoms_to_process.extend(list(ifp_shapely.geoms))
+                                for geom in geoms_to_process:
+                                    if isinstance(geom, Polygon) and not geom.is_empty:
+                                        potential_points_raw.extend(list(geom.exterior.coords)[:-1])
+                                if not potential_points_raw:
+                                    logging.debug(f"      Geen IFP punten op {sheet['id']}.")
+                                    continue
+                                unique_potential_points = {(round(p[0],4), round(p[1],4)) for p in potential_points_raw}
+                                sorted_candidate_points = sorted(list(unique_potential_points), key=lambda p: (p[0], p[1]))
+                                logging.debug(f"      Aantal IFP punten te testen: {len(sorted_candidate_points)}")
+                                best_placement_for_this_angle_sheet = evaluate_candidate_points(sorted_candidate_points, sheet, sheet_index, rotated_shapely_polygon, rotated_ref_offset_x, rotated_ref_offset_y, angle, candidate_valid_area, candidate_buffer_amount)
+                            if best_placement_for_this_angle_sheet:
+                                if best_placement_overall_for_part is None:
+                                    best_placement_overall_for_part = best_placement_for_this_angle_sheet
+                                else:
+                                    curr = best_placement_for_this_angle_sheet
+                                    best = best_placement_overall_for_part
+                                    if best_fit_score_strategy == "ORIGINDIST":
+                                        if (curr["x"]**2+curr["y"]**2) < (best["x"]**2+best["y"]**2) - TOLERANCE:
+                                            best_placement_overall_for_part = curr
+                                    elif best_fit_score_strategy == "SHEETYX":
+                                        if curr["sheet_index"] < best["sheet_index"]:
+                                            best_placement_overall_for_part = curr
+                                        elif curr["sheet_index"] == best["sheet_index"]:
+                                            if curr["y"] < best["y"] - TOLERANCE or (abs(curr["y"] - best["y"]) < TOLERANCE and curr["x"] < best["x"] - TOLERANCE):
+                                                best_placement_overall_for_part = curr
+                                    else:
+                                        if curr["y"] < best["y"] - TOLERANCE or (abs(curr["y"]-best["y"])<TOLERANCE and curr["x"]<best["x"]-TOLERANCE):
+                                            best_placement_overall_for_part = curr
+                        except Exception as place_error:
+                            logging.error(f"  Fout checken plaat {sheet['id']} hoek {angle}: {place_error}\n{traceback.format_exc()}")
+                            continue
+                if best_placement_overall_for_part:
+                    chosen_placement = best_placement_overall_for_part
+                    sheet_to_place_on = chosen_placement["sheet_instance"]
+                    final_poly = chosen_placement["placed_shapely_polygon"]
+                    final_angle = chosen_placement["angle"]
+                    final_x = chosen_placement["x"]
+                    final_y = chosen_placement["y"]
+                    final_w = chosen_placement["width_bbox"]
+                    final_h = chosen_placement["height_bbox"]
+                    placement_info = {
+                        "partInstanceId": instance_id_log,
+                        "partId": part_id,
+                        "originalName": original_name,
+                        "sheetId": sheet_to_place_on["id"],
+                        "x_bl_bbox": final_x,
+                        "y_bl_bbox": final_y,
+                        "width_bbox": final_w,
+                        "height_bbox": final_h,
+                        "rotation": final_angle,
+                        "profile2d": part_info.get("profile"),
+                        "bbox": {"x": final_x, "y": final_y, "width": final_w, "height": final_h}
+                    }
+                    # Indien SVG-output gewenst, voeg de SVG paddata toe (alleen de exterieur)
+                    if _OUTPUT_SVG:
+                        placement_info["svg"] = polygon_to_svg(final_poly)
+                        logging.debug(f"Placement {instance_id_log} SVG: {placement_info['svg']}")
+                    final_placements.append(placement_info)
+                    sheet_to_place_on["placed_items"].append(placement_info)
+                    sheet_to_place_on["placed_original_polygons"].append(final_poly)
+                    if (part_spacing/2.0+TOLERANCE) > ZERO_TOLERANCE:
+                        buffered_for_check = final_poly.buffer((part_spacing/2.0+TOLERANCE), cap_style=1, join_style=1)
+                        if not buffered_for_check.is_valid or buffered_for_check.is_empty:
+                            logging.warning(f"  Buffer ongeldig {instance_id_log}. Fallback.")
+                            buffered_for_check = final_poly
+                    else:
+                        buffered_for_check = final_poly
+                    sheet_to_place_on["placed_shapely_polygons_buffered"].append(buffered_for_check)
+                    if len(sheet_to_place_on["placed_shapely_polygons_buffered"]) % INDEX_THRESHOLD == 0:
+                        try:
+                            sheet_to_place_on["buffered_polygon_tree"] = STRtree(sheet_to_place_on["placed_shapely_polygons_buffered"])
+                            logging.debug(f"  STRtree bijgewerkt sheet {sheet_to_place_on['id']}, {len(sheet_to_place_on['placed_shapely_polygons_buffered'])} items.")
+                        except Exception as tree_error:
+                            logging.error(f"  Fout update STRtree {sheet_to_place_on['id']}: {tree_error}")
+                            sheet_to_place_on["buffered_polygon_tree"] = None
+                    # Update candidate points for bottom-left placement
+                    cp_list = sheet_to_place_on.get("candidate_points", [])
+                    cp_list.append((final_x + final_w + part_spacing, final_y))
+                    cp_list.append((final_x, final_y + final_h + part_spacing))
+                    valid_area = sheet_to_place_on["sheet_polygon_with_margin"]
+                    new_list = []
+                    for cx, cy in cp_list:
+                        pt = Point(cx, cy)
+                        if not valid_area.contains(pt):
+                            continue
+                        overlap = False
+                        for buff in sheet_to_place_on["placed_shapely_polygons_buffered"]:
+                            if pt.within(buff):
+                                overlap = True
+                                break
+                        if not overlap:
+                            new_list.append((round(cx,4), round(cy,4)))
+                    # remove duplicates and sort by x,y
+                    sheet_to_place_on["candidate_points"] = sorted(list({(x,y) for x,y in new_list}), key=lambda p: (p[0], p[1]))
+                    logging.info(f"  ==> Geplaatst (TEST NoLimit): {instance_id_log} op {sheet_to_place_on['id']} @ ({final_x:.1f}, {final_y:.1f}) R:{final_angle:.1f}")
+                else:
+                    unplaced_parts_from_nesting.append(part_instance)
+                    logging.warning(f"  Kon {instance_id_log} ({original_name}) niet plaatsen (geen geldige positie).")
     logging.info(f"Nesting loop voltooid ({time.time()-start_time_nesting:.2f}s).")
     logging.info("Resultaten formatteren...")
     unplaced_summary = defaultdict(lambda: {"count": 0, "originalName": ""})
