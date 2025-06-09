@@ -466,6 +466,10 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
     This approximates each part by its bounding box and packs them on the
     available sheets. Only 90 degree rotation is considered when allow_rotation
     is not "0".
+
+    The rectpack results are converted to the same placement structure as the
+    default algorithm so the caller can use them transparently (including SVG
+    data when enabled).
     """
     try:
         import rectpack
@@ -528,11 +532,14 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
             h_exp = bbox.get("height", 0.0) + part_spacing
             if abs(rect.width - h_exp) < TOLERANCE and abs(rect.height - w_exp) < TOLERANCE:
                 rotation = 90
+            # Position of the rectangle including spacing and margin
+            rect_x = rect.x + sheet_margin
+            rect_y = rect.y + sheet_margin
             placements.append({
                 "id": rid,
                 "sheet_id": sheet_id,
-                "x": rect.x + sheet_margin,
-                "y": rect.y + sheet_margin,
+                "x": rect_x,
+                "y": rect_y,
                 "rotation": rotation,
             })
             logging.debug(
@@ -551,7 +558,49 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
         logging.debug(
             "Unplaced parts after rectpack: %s", [p["instance_id"] for p in unplaced]
         )
-    return placements, unplaced
+    # Convert simple rectpack results to full placement format
+    final_results = []
+    for pl in placements:
+        rid = pl["id"]
+        sheet_id = pl["sheet_id"]
+        orig_id = rid.rsplit("_inst_", 1)[0]
+        info = part_details.get(orig_id, {})
+        base_poly = info.get("shapely_polygon_0")
+        if not base_poly:
+            continue
+        angle = pl["rotation"]
+        ref_x, ref_y = info.get("reference_point_0", (0, 0))
+        rotated = rotate(base_poly, angle, origin=(0, 0), use_radians=False) if angle else base_poly
+        rxmin, rymin, rxmax, rymax = rotated.bounds
+        placed = translate(
+            rotated,
+            pl["x"] + part_spacing / 2.0 - rxmin,
+            pl["y"] + part_spacing / 2.0 - rymin,
+        )
+        bbox_final = calculate_bounding_box(list(placed.exterior.coords))
+        placement_info = {
+            "partInstanceId": rid,
+            "partId": orig_id,
+            "originalName": info.get("originalName", orig_id),
+            "sheetId": sheet_id,
+            "x_bl_bbox": bbox_final["min_x"],
+            "y_bl_bbox": bbox_final["min_y"],
+            "width_bbox": bbox_final["width"],
+            "height_bbox": bbox_final["height"],
+            "rotation": angle,
+            "profile2d": info.get("profile"),
+            "bbox": {
+                "x": bbox_final["min_x"],
+                "y": bbox_final["min_y"],
+                "width": bbox_final["width"],
+                "height": bbox_final["height"],
+            },
+        }
+        if _OUTPUT_SVG:
+            placement_info["svg"] = polygon_to_svg(placed)
+        final_results.append(placement_info)
+
+    return final_results, unplaced
 
 # --- Hoofdfunctie ---
 def main(job_file_path):
