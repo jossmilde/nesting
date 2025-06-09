@@ -13,3 +13,9 @@ environment variable `NESTING_DEBUG=1` before running `run_nesting.py` to enable
 detailed debug output. This can help diagnose placement issues and analyse the
 candidate search process.
 
+## Progress Bar
+
+The main nesting loop now shows a progress bar while placing parts. Ensure the
+`tqdm` package is installed (`pip install -r requirements.txt`). The bar writes
+to `stderr` so JSON output on `stdout` is unaffected.
+

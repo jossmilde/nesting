@@ -10,6 +10,7 @@ from collections import defaultdict
 import math
 import logging
 import numpy as np
+from tqdm import tqdm
 
 # --- Instellingen (aanpassen indien gewenst) ---
 _OUTPUT_SVG = True  # Als True, wordt voor elk geplaatst onderdeel de SVG-paddata meegeleverd in de JSON-output.
@@ -652,7 +653,8 @@ def main(job_file_path):
         parts_to_place.sort(key=lambda p: part_details[p["original_id"]]["area"], reverse=True)
     except Exception as sort_err:
         logging.warning(f"Sorteren mislukt: {sort_err}")
-    for part_idx, part_instance in enumerate(parts_to_place):
+    for part_idx, part_instance in enumerate(
+            tqdm(parts_to_place, desc="Nesting parts", unit="part", file=sys.stderr)):
         part_id = part_instance["original_id"]
         part_thickness = part_instance["thickness"]
         instance_id_log = part_instance["instance_id"]
