@@ -1,0 +1,104 @@
+2025-06-08 20:42:48 INFO     run_nesting.py v0.19.1-diag-nolimit (TEST: Geen IFP Limiet) gestart.
+2025-06-08 20:42:48 INFO     Logbestand: C:\nesting2\nesting_run.log
+2025-06-08 20:42:48 INFO     Shapely & Pyclipper gevonden. Clipper Schaal: 10000.0
+2025-06-08 20:42:48 INFO     Job file 'C:\nesting2\temp_jobs\job-1749408168192-cde5e9c1.json' geladen (0.00s).
+2025-06-08 20:42:48 INFO     Parameters: partSpacing=5, sheetMargin=10, allowRotation='3', bestFitScore='YX', maxIfpPoints=NO_LIMIT_TEST
+2025-06-08 20:42:48 INFO     Data voorbereiden...
+2025-06-08 20:42:48 INFO     Voorbereiding voltooid (0.00s).
+2025-06-08 20:42:48 INFO     45 onderdeel-instanties te plaatsen.
+2025-06-08 20:42:48 INFO     1 plaat-instanties beschikbaar (1 diktes).
+2025-06-08 20:42:48 INFO     Start nesting (TEST: Geen IFP Limiet + STRtree)...
+2025-06-08 20:42:48 INFO     [1/45] Verwerken: upload-1749389274195-179107741.step_inst_1 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:48 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_1 op manual_1_inst_1 @ (10.0, 10.0) R:0.0
+2025-06-08 20:42:48 INFO     [2/45] Verwerken: upload-1749389274195-179107741.step_inst_2 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:48 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_2 op manual_1_inst_1 @ (10.0, 115.0) R:90.0
+2025-06-08 20:42:48 INFO     [3/45] Verwerken: upload-1749389274195-179107741.step_inst_3 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:48 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_3 op manual_1_inst_1 @ (115.0, 115.0) R:0.0
+2025-06-08 20:42:48 INFO     [4/45] Verwerken: upload-1749389274195-179107741.step_inst_4 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:48 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_4 op manual_1_inst_1 @ (15.0, 220.0) R:90.0
+2025-06-08 20:42:48 INFO     [5/45] Verwerken: upload-1749389274195-179107741.step_inst_5 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:48 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_5 op manual_1_inst_1 @ (15.0, 325.0) R:0.0
+2025-06-08 20:42:48 INFO     [6/45] Verwerken: upload-1749389274195-179107741.step_inst_6 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:48 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_6 op manual_1_inst_1 @ (15.0, 430.0) R:0.0
+2025-06-08 20:42:48 INFO     [7/45] Verwerken: upload-1749389274195-179107741.step_inst_7 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:49 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_7 op manual_1_inst_1 @ (15.0, 535.0) R:0.0
+2025-06-08 20:42:49 INFO     [8/45] Verwerken: upload-1749389274195-179107741.step_inst_8 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:49 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_8 op manual_1_inst_1 @ (15.0, 640.0) R:0.0
+2025-06-08 20:42:49 INFO     [9/45] Verwerken: upload-1749389274195-179107741.step_inst_9 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:49 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_9 op manual_1_inst_1 @ (15.0, 745.0) R:0.0
+2025-06-08 20:42:49 INFO     [10/45] Verwerken: upload-1749389274195-179107741.step_inst_10 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:49 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_10 op manual_1_inst_1 @ (15.0, 850.0) R:0.0
+2025-06-08 20:42:49 INFO     [11/45] Verwerken: upload-1749389274195-179107741.step_inst_11 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:50 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_11 op manual_1_inst_1 @ (15.0, 955.0) R:0.0
+2025-06-08 20:42:50 INFO     [12/45] Verwerken: upload-1749389274195-179107741.step_inst_12 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:50 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_12 op manual_1_inst_1 @ (15.0, 1060.0) R:0.0
+2025-06-08 20:42:50 INFO     [13/45] Verwerken: upload-1749389274195-179107741.step_inst_13 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:50 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_13 op manual_1_inst_1 @ (2387.5, 12.5) R:90.0
+2025-06-08 20:42:50 INFO     [14/45] Verwerken: upload-1749389274195-179107741.step_inst_14 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:50 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_14 op manual_1_inst_1 @ (2287.5, 117.5) R:90.0
+2025-06-08 20:42:50 INFO     [15/45] Verwerken: upload-1749389274195-179107741.step_inst_15 (100mm_square.step) Dikte: 5
+2025-06-08 20:42:50 INFO       ==> Geplaatst (TEST NoLimit): upload-1749389274195-179107741.step_inst_15 op manual_1_inst_1 @ (120.0, 220.0) R:0.0
+2025-06-08 20:42:50 INFO     [16/45] Verwerken: upload-1749407987973-150278130.step_inst_1 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:50 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_1 op manual_1_inst_1 @ (2167.0, 172.8) R:135.0
+2025-06-08 20:42:50 INFO     [17/45] Verwerken: upload-1749407987973-150278130.step_inst_2 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:51 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_2 op manual_1_inst_1 @ (2046.4, 227.8) R:135.0
+2025-06-08 20:42:51 INFO     [18/45] Verwerken: upload-1749407987973-150278130.step_inst_3 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:51 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_3 op manual_1_inst_1 @ (1925.9, 282.8) R:135.0
+2025-06-08 20:42:51 INFO     [19/45] Verwerken: upload-1749407987973-150278130.step_inst_4 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:51 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_4 op manual_1_inst_1 @ (120.0, 325.0) R:0.0
+2025-06-08 20:42:51 INFO     [20/45] Verwerken: upload-1749407987973-150278130.step_inst_5 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:51 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_5 op manual_1_inst_1 @ (1805.4, 337.7) R:135.0
+2025-06-08 20:42:51 INFO     [21/45] Verwerken: upload-1749407987973-150278130.step_inst_6 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:51 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_6 op manual_1_inst_1 @ (1684.8, 392.7) R:135.0
+2025-06-08 20:42:51 INFO     [22/45] Verwerken: upload-1749407987973-150278130.step_inst_7 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:51 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_7 op manual_1_inst_1 @ (120.0, 429.7) R:0.0
+2025-06-08 20:42:51 INFO     [23/45] Verwerken: upload-1749407987973-150278130.step_inst_8 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:51 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_8 op manual_1_inst_1 @ (1564.3, 447.6) R:135.0
+2025-06-08 20:42:51 INFO     [24/45] Verwerken: upload-1749407987973-150278130.step_inst_9 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:51 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_9 op manual_1_inst_1 @ (1443.8, 502.6) R:135.0
+2025-06-08 20:42:51 INFO     [25/45] Verwerken: upload-1749407987973-150278130.step_inst_10 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:51 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_10 op manual_1_inst_1 @ (120.0, 534.5) R:0.0
+2025-06-08 20:42:51 INFO     [26/45] Verwerken: upload-1749407987973-150278130.step_inst_11 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:51 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_11 op manual_1_inst_1 @ (1323.2, 557.6) R:135.0
+2025-06-08 20:42:51 INFO     [27/45] Verwerken: upload-1749407987973-150278130.step_inst_12 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:52 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_12 op manual_1_inst_1 @ (1202.7, 612.5) R:135.0
+2025-06-08 20:42:52 INFO     [28/45] Verwerken: upload-1749407987973-150278130.step_inst_13 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:52 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_13 op manual_1_inst_1 @ (120.0, 639.2) R:0.0
+2025-06-08 20:42:52 INFO     [29/45] Verwerken: upload-1749407987973-150278130.step_inst_14 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:52 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_14 op manual_1_inst_1 @ (1082.2, 667.5) R:135.0
+2025-06-08 20:42:52 INFO     [30/45] Verwerken: upload-1749407987973-150278130.step_inst_15 (circle_d100mm_h5mm.step) Dikte: 5
+2025-06-08 20:42:52 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-150278130.step_inst_15 op manual_1_inst_1 @ (961.6, 722.4) R:135.0
+2025-06-08 20:42:52 INFO     [31/45] Verwerken: upload-1749407987973-897159806.step_inst_1 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:42:53 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_1 op manual_1_inst_1 @ (120.0, 744.0) R:0.0
+2025-06-08 20:42:53 INFO     [32/45] Verwerken: upload-1749407987973-897159806.step_inst_2 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:42:54 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_2 op manual_1_inst_1 @ (831.7, 802.1) R:120.0
+2025-06-08 20:42:54 INFO     [33/45] Verwerken: upload-1749407987973-897159806.step_inst_3 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:42:56 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_3 op manual_1_inst_1 @ (120.0, 849.0) R:0.0
+2025-06-08 20:42:56 INFO     [34/45] Verwerken: upload-1749407987973-897159806.step_inst_4 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:42:57 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_4 op manual_1_inst_1 @ (701.8, 882.1) R:120.0
+2025-06-08 20:42:57 INFO     [35/45] Verwerken: upload-1749407987973-897159806.step_inst_5 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:42:58 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_5 op manual_1_inst_1 @ (120.0, 954.0) R:0.0
+2025-06-08 20:42:58 INFO     [36/45] Verwerken: upload-1749407987973-897159806.step_inst_6 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:43:00 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_6 op manual_1_inst_1 @ (571.9, 962.1) R:120.0
+2025-06-08 20:43:00 INFO     [37/45] Verwerken: upload-1749407987973-897159806.step_inst_7 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:43:01 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_7 op manual_1_inst_1 @ (442.0, 1042.1) R:120.0
+2025-06-08 20:43:01 INFO     [38/45] Verwerken: upload-1749407987973-897159806.step_inst_8 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:43:02 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_8 op manual_1_inst_1 @ (120.0, 1059.0) R:0.0
+2025-06-08 20:43:02 INFO     [39/45] Verwerken: upload-1749407987973-897159806.step_inst_9 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:43:04 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_9 op manual_1_inst_1 @ (211.6, 744.0) R:0.0
+2025-06-08 20:43:04 INFO     [40/45] Verwerken: upload-1749407987973-897159806.step_inst_10 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:43:04 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_10 op manual_1_inst_1 @ (259.9, 619.0) R:240.0
+2025-06-08 20:43:04 INFO     [41/45] Verwerken: upload-1749407987973-897159806.step_inst_11 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:43:04 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_11 op manual_1_inst_1 @ (308.2, 494.0) R:240.0
+2025-06-08 20:43:04 INFO     [42/45] Verwerken: upload-1749407987973-897159806.step_inst_12 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:43:04 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_12 op manual_1_inst_1 @ (356.5, 369.0) R:240.0
+2025-06-08 20:43:04 INFO     [43/45] Verwerken: upload-1749407987973-897159806.step_inst_13 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:43:04 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_13 op manual_1_inst_1 @ (404.8, 244.0) R:240.0
+2025-06-08 20:43:04 INFO     [44/45] Verwerken: upload-1749407987973-897159806.step_inst_14 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:43:05 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_14 op manual_1_inst_1 @ (453.1, 119.0) R:240.0
+2025-06-08 20:43:05 INFO     [45/45] Verwerken: upload-1749407987973-897159806.step_inst_15 (equilateral_triangle_ind100mm.step) Dikte: 5
+2025-06-08 20:43:06 INFO       ==> Geplaatst (TEST NoLimit): upload-1749407987973-897159806.step_inst_15 op manual_1_inst_1 @ (211.6, 849.0) R:0.0
+2025-06-08 20:43:06 INFO     Nesting loop voltooid (18.22s).
+2025-06-08 20:43:06 INFO     Resultaten formatteren...
+2025-06-08 20:43:06 INFO     Resultaat naar stdout sturen.
+2025-06-08 20:43:06 INFO     Statistieken: {"totalPartsRequested": 45, "totalPartsPlaced": 45, "totalPartsUnplaced": 0, "initiallySkipped": 0, "unplacedDuringNesting": 0, "nestingTimeSeconds": 18.22, "preparationTimeSeconds": 0.0, "loadingTimeSeconds": 0.0}
