@@ -74,15 +74,20 @@ async function processNestingJob(jobData) {
     console.log(`[${new Date().toISOString()}] [PROCESS NESTING] Starting job ${jobId}`);
 
     try {
-        const jsonString = JSON.stringify(jobData, null, 2);
-        await fs.promises.writeFile(tempFilePath, jsonString, 'utf8');
+    const { debug, timing, ...jobForPython } = jobData || {};
+    const jsonString = JSON.stringify(jobForPython, null, 2);
+    await fs.promises.writeFile(tempFilePath, jsonString, 'utf8');
         console.log(`[${new Date().toISOString()}] [PROCESS NESTING] Job data written to ${tempFilePath}`);
 
         const command = `"${PYTHON_EXECUTABLE}" "${pythonNestingScriptPath}" "${tempFilePath}"`;
         console.log(`[${new Date().toISOString()}] [PROCESS NESTING] Executing: ${command}`);
 
-        const resultPromise = new Promise((resolve) => {
-            exec(command, { maxBuffer: 50 * 1024 * 1024 }, (error, stdout, stderr) => { // Verhoogde buffer
+    const env = { ...process.env };
+    if (debug) env.NESTING_DEBUG = '1';
+    if (timing) env.NESTING_TIMING = '1';
+
+    const resultPromise = new Promise((resolve) => {
+        exec(command, { maxBuffer: 50 * 1024 * 1024, env }, (error, stdout, stderr) => { // Verhoogde buffer
                 let resultData = null;
                 let parseError = null;
 

@@ -58,6 +58,12 @@ Set the environment variable `NESTING_TIMING=1` to record how long heavy helper
 functions take. When enabled a file `nesting_timing.log` is written after a run
 listing the total and average time spent inside each decorated function.
 
+## Front-end Toggles
+
+The web interface now exposes checkboxes for `Debug` and `Timing`. When
+selected these options set the `NESTING_DEBUG` and `NESTING_TIMING`
+environment variables for the nesting run.
+
 ## Progress Bar
 
 The main nesting loop now shows a progress bar while placing parts. Ensure the
