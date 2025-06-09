@@ -765,11 +765,26 @@ def nest_with_shelf(parts_to_place, part_details, available_sheets, part_spacing
             orig_h = bbox.get("height", 0.0)
             rotation = 0
 
-            # Try both orientations when rotation is allowed and pick the one
-            # that yields the lowest shelf height while still fitting.
-            orientations = [(orig_w, orig_h, 0)]
+            # Determine candidate angles. Use automatically determined
+            # potential angles when available instead of just 0/90 deg.
+            candidate_angles = [0.0]
             if allow_rotation != "0":
-                orientations.append((orig_h, orig_w, 90))
+                candidate_angles = info.get("potential_angles", [0.0])
+
+            orientations = []
+            for ang in candidate_angles:
+                if abs(ang) < ZERO_TOLERANCE:
+                    w, h = orig_w, orig_h
+                else:
+                    rotated = rotate(
+                        info["shapely_polygon_0"],
+                        ang,
+                        origin=(0, 0),
+                        use_radians=False,
+                    )
+                    bounds = calculate_bounding_box(list(rotated.exterior.coords))
+                    w, h = bounds["width"], bounds["height"]
+                orientations.append((w, h, ang))
 
             viable = []
             for ow, oh, ang in orientations:
