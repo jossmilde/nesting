@@ -13,6 +13,7 @@ environment variable `NESTING_DEBUG=1` before running `run_nesting.py` to enable
 detailed debug output. This can help diagnose placement issues and analyse the
 candidate search process.
 
+=======
 ## Timing Statistics
 
 Set the environment variable `NESTING_TIMING=1` to record how long heavy helper
@@ -24,5 +25,4 @@ listing the total and average time spent inside each decorated function.
 The main nesting loop now shows a progress bar while placing parts. Ensure the
 `tqdm` package is installed (`pip install -r requirements.txt`). The bar writes
 to `stderr` so JSON output on `stdout` is unaffected.
-
 

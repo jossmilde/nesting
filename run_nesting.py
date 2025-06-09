@@ -771,7 +771,6 @@ def main(job_file_path):
                         logging.debug(f"      Kon IFP paden niet naar Shapely converteren op {sheet['id']}.")
                         continue
                     existing_candidate_points = sheet.get("candidate_points", [])
-
                     candidate_valid_area = sheet["sheet_polygon_with_margin"]
                     candidate_buffer_amount = (part_spacing/2.0) + TOLERANCE
                     best_placement_for_this_angle_sheet = None
@@ -779,7 +778,6 @@ def main(job_file_path):
                         unique_cache = sorted(list({(round(p[0],4), round(p[1],4)) for p in existing_candidate_points}), key=lambda p: (p[0], p[1]))
                         logging.debug(f"      Cached punten te testen: {len(unique_cache)}")
                         best_placement_for_this_angle_sheet = evaluate_candidate_points(unique_cache, sheet, sheet_index, rotated_shapely_polygon, rotated_ref_offset_x, rotated_ref_offset_y, angle, candidate_valid_area, candidate_buffer_amount)
-
                     if best_placement_for_this_angle_sheet is None:
                         potential_points_raw = []
                         geoms_to_process = []
@@ -793,13 +791,10 @@ def main(job_file_path):
                         if not potential_points_raw:
                             logging.debug(f"      Geen IFP punten op {sheet['id']}.")
                             continue
-
                         unique_potential_points = {(round(p[0],4), round(p[1],4)) for p in potential_points_raw}
                         sorted_candidate_points = sorted(list(unique_potential_points), key=lambda p: (p[0], p[1]))
                         logging.debug(f"      Aantal IFP punten te testen: {len(sorted_candidate_points)}")
                         best_placement_for_this_angle_sheet = evaluate_candidate_points(sorted_candidate_points, sheet, sheet_index, rotated_shapely_polygon, rotated_ref_offset_x, rotated_ref_offset_y, angle, candidate_valid_area, candidate_buffer_amount)
-
-
                     if best_placement_for_this_angle_sheet:
                         if best_placement_overall_for_part is None:
                             best_placement_overall_for_part = best_placement_for_this_angle_sheet
