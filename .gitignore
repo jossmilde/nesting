@@ -1,3 +1,5 @@
 .tmp.driveupload/
 node_modules/
+nesting_run.log
+nesting_timing.log
 
