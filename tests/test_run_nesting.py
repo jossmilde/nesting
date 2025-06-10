@@ -135,5 +135,93 @@ def test_shelf_rotation_applied():
     data = json.loads(result.stdout)
     assert data["success"] is True
     assert len(data["placements"]) == 1
-    assert data["placements"][0]["rotation"] == 90
+    assert abs(data["placements"][0]["rotation"]) == 90
+
+
+def test_shelf_candidate_angles_used():
+    """Rotation angles determined from the polygon should be honoured."""
+    job = {
+        "parts": [
+            {
+                "id": "p1",
+                "originalName": "tri",
+                "quantity": 1,
+                "thickness": 1,
+                "profile2d": {"outer": [[0,0],[2,10],[4,0],[0,0]]},
+            }
+        ],
+        "sheets": [
+            {"id": "s1", "quantity": 1, "thickness": 1, "width": 12, "height": 50}
+        ],
+        "parameters": {
+            "nestingStrategy": "SHELF",
+            "partToPartDistance": 0,
+            "partToSheetDistance": 0,
+            "allowRotation": "3",
+            "bestFitScore": "YX",
+        },
+    }
+
+    run_script = Path(__file__).resolve().parents[1] / "run_nesting.py"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        job_file = Path(tmp) / "job.json"
+        with open(job_file, "w", encoding="utf-8") as f:
+            json.dump(job, f)
+        result = subprocess.run(
+            [sys.executable, str(run_script), str(job_file)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+    data = json.loads(result.stdout)
+    assert data["success"] is True
+    assert len(data["placements"]) == 1
+    rot = data["placements"][0]["rotation"]
+    assert rot not in {0, 90, -90, 180, -180}
+
+
+def test_shelf_angles_with_offset_polygon():
+    """Ensure candidate angles combine auto angles and edge angles."""
+    job = {
+        "parts": [
+            {
+                "id": "p1",
+                "originalName": "diamond",
+                "quantity": 1,
+                "thickness": 1,
+                "profile2d": {"outer": [[0,5],[5,10],[10,5],[5,0],[0,5]]},
+            }
+        ],
+        "sheets": [
+            {"id": "s1", "quantity": 1, "thickness": 1, "width": 12, "height": 12}
+        ],
+        "parameters": {
+            "nestingStrategy": "SHELF",
+            "partToPartDistance": 0,
+            "partToSheetDistance": 0,
+            "allowRotation": "3",
+            "bestFitScore": "YX",
+        },
+    }
+
+    run_script = Path(__file__).resolve().parents[1] / "run_nesting.py"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        job_file = Path(tmp) / "job.json"
+        with open(job_file, "w", encoding="utf-8") as f:
+            json.dump(job, f)
+        result = subprocess.run(
+            [sys.executable, str(run_script), str(job_file)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+    data = json.loads(result.stdout)
+    assert data["success"] is True
+    assert len(data["placements"]) == 1
+    rot = data["placements"][0]["rotation"]
+    assert abs(abs(rot) - 45) < 0.01 or abs(abs(rot) - 135) < 0.01
 

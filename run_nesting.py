@@ -43,6 +43,10 @@ ZERO_TOLERANCE = 1e-9
 INDEX_THRESHOLD = 10         # drempel voor STRtree-updates
 _OVERLAP_DIST_THRESHOLD = 1e-3  # extra drempel voor overlapcontrole
 
+def normalize_angle(angle):
+    """Return angle normalized to [-180, 180) degrees."""
+    return ((angle + 180) % 360) - 180
+
 # Timing setup
 timing_stats = defaultdict(lambda: {"total_time": 0.0, "call_count": 0})
 _timing_enabled = os.environ.get("NESTING_TIMING") == "1"
@@ -472,7 +476,7 @@ def filter_angles_by_allow_rotation(angles, allow_rotation_type):
         "3" = free rotation (no filtering).
     """
     if allow_rotation_type == "3":
-        return sorted(list({round(a, 2) for a in angles}))
+        return sorted(list({round(normalize_angle(a), 2) for a in angles}))
 
     allowed = {0.0}
     if allow_rotation_type in ("1", "2"):
@@ -486,7 +490,7 @@ def filter_angles_by_allow_rotation(angles, allow_rotation_type):
     filtered = [a for a in angles if any(_matches(a, t) for t in allowed)]
     if not filtered:
         filtered = list(allowed)
-    return sorted(list({round(a, 2) for a in filtered}))
+    return sorted(list({round(normalize_angle(a), 2) for a in filtered}))
 
 # --- Simplified Rectpack based nesting ---
 def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spacing, sheet_margin, allow_rotation):
@@ -574,7 +578,7 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
                 "sheet_id": sheet_id,
                 "x": rect_x,
                 "y": rect_y,
-                "rotation": rotation,
+                "rotation": round(normalize_angle(rotation), 2),
             })
             logging.debug(
                 "Placed %s on sheet %s at (%s,%s) size=%sx%s rot=%s",
@@ -604,7 +608,7 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
             continue
         angle = pl["rotation"]
         ref_x, ref_y = info.get("reference_point_0", (0, 0))
-        rotated = rotate(base_poly, angle, origin=(0, 0), use_radians=False) if angle else base_poly
+        rotated = rotate(base_poly, angle, origin=(ref_x, ref_y), use_radians=False) if angle else base_poly
         rxmin, rymin, rxmax, rymax = rotated.bounds
         placed = translate(
             rotated,
@@ -621,7 +625,7 @@ def nest_with_rectpack(parts_to_place, part_details, available_sheets, part_spac
             "y_bl_bbox": bbox_final["min_y"],
             "width_bbox": bbox_final["width"],
             "height_bbox": bbox_final["height"],
-            "rotation": angle,
+            "rotation": round(normalize_angle(angle), 2),
             "profile2d": info.get("profile"),
             "bbox": {
                 "x": bbox_final["min_x"],
@@ -666,8 +670,9 @@ def nest_with_svg_nest(parts_to_place, part_details, available_sheets, part_spac
                         free_area = free_area.difference(p)
             if free_area.is_empty:
                 continue
+            ref_origin = info.get("reference_point_0", (0, 0))
             for angle in candidate_angles:
-                rotated = rotate(base_poly, angle, origin=(0, 0), use_radians=False) if angle else base_poly
+                rotated = rotate(base_poly, angle, origin=ref_origin, use_radians=False) if angle else base_poly
                 rxmin, rymin, _, _ = rotated.bounds
                 # If the remaining free area consists of multiple polygons,
                 # collect candidate coordinates from each polygon exterior.
@@ -694,7 +699,7 @@ def nest_with_svg_nest(parts_to_place, part_details, available_sheets, part_spac
                             "y_bl_bbox": bbox_final["min_y"],
                             "width_bbox": bbox_final["width"],
                             "height_bbox": bbox_final["height"],
-                            "rotation": angle,
+                            "rotation": round(normalize_angle(angle), 2),
                             "profile2d": info.get("profile"),
                             "bbox": {
                                 "x": bbox_final["min_x"],
@@ -765,11 +770,22 @@ def nest_with_shelf(parts_to_place, part_details, available_sheets, part_spacing
             orig_h = bbox.get("height", 0.0)
             rotation = 0
 
-            # Try both orientations when rotation is allowed and pick the one
-            # that yields the lowest shelf height while still fitting.
-            orientations = [(orig_w, orig_h, 0)]
+            # Determine candidate angles. Use automatically determined
+            # potential angles when available instead of just 0/90 deg.
+            candidate_angles = [0.0]
             if allow_rotation != "0":
-                orientations.append((orig_h, orig_w, 90))
+                candidate_angles = info.get("potential_angles", [0.0])
+
+            orientations = []
+            rot_origin = info.get("reference_point_0", (0, 0))
+            for ang in candidate_angles:
+                if abs(ang) < ZERO_TOLERANCE:
+                    w, h = orig_w, orig_h
+                else:
+                    rotated = rotate(info["shapely_polygon_0"], ang, origin=rot_origin, use_radians=False)
+                    bounds = calculate_bounding_box(list(rotated.exterior.coords))
+                    w, h = bounds["width"], bounds["height"]
+                orientations.append((w, h, ang))
 
             viable = []
             for ow, oh, ang in orientations:
@@ -779,8 +795,8 @@ def nest_with_shelf(parts_to_place, part_details, available_sheets, part_spacing
                 unplaced.append(part)
                 continue
 
-            # Choose orientation with minimal height, then width
-            w, h, rotation = sorted(viable, key=lambda t: (t[1], t[0]))[0]
+            # Choose orientation with minimal bounding box area, then height
+            w, h, rotation = sorted(viable, key=lambda t: (t[0] * t[1], t[1]))[0]
 
             w_pad = w + part_spacing
             h_pad = h + part_spacing
@@ -802,8 +818,9 @@ def nest_with_shelf(parts_to_place, part_details, available_sheets, part_spacing
                 y = sheet_margin
                 shelf_height = 0
 
+            rot_origin = info.get("reference_point_0", (0, 0))
             rotated_poly = (
-                rotate(info["shapely_polygon_0"], rotation, origin=(0, 0), use_radians=False)
+                rotate(info["shapely_polygon_0"], rotation, origin=rot_origin, use_radians=False)
                 if rotation
                 else info["shapely_polygon_0"]
             )
@@ -820,7 +837,7 @@ def nest_with_shelf(parts_to_place, part_details, available_sheets, part_spacing
                 "y_bl_bbox": bbox_final["min_y"],
                 "width_bbox": bbox_final["width"],
                 "height_bbox": bbox_final["height"],
-                "rotation": rotation,
+                "rotation": round(normalize_angle(rotation), 2),
                 "profile2d": info.get("profile"),
                 "bbox": {
                     "x": bbox_final["min_x"],
@@ -959,14 +976,13 @@ def main(job_file_path):
         # Gebruik de linkeronderhoek als referentiepunt (aangenomen dat STEP data zo gedefinieerd is)
         reference_point_0 = (bbox_0['min_x'], bbox_0['min_y'])
         base_potential_angles = get_potential_rotation_angles(shapely_poly)
+        possible_angles = list(base_potential_angles)
         if num_segments <= 10:
             candidate_angles = determine_candidate_angles(num_segments)
             logging.debug(
                 f"Automatisch bepaalde rotatiehoeken voor '{original_name}' (n={num_segments}): {candidate_angles}"
             )
-            possible_angles = candidate_angles
-        else:
-            possible_angles = base_potential_angles
+            possible_angles.extend(candidate_angles)
         possible_angles = filter_angles_by_allow_rotation(possible_angles, allowed_rotation_type)
         logging.debug(f"  Toegestane rotaties: {possible_angles}")
         part_details[part_id] = {
@@ -1132,8 +1148,8 @@ def main(job_file_path):
                 for angle in possible_angles:
                     if angle not in rotated_cache:
                         try:
-                            rotated_poly = rotate(original_shapely_polygon, angle, origin=(0,0), use_radians=False)
-                            rotated_ref = rotate(Point(reference_point), angle, origin=(0,0), use_radians=False)
+                            rotated_poly = rotate(original_shapely_polygon, angle, origin=reference_point, use_radians=False)
+                            rotated_ref = rotate(Point(reference_point), angle, origin=reference_point, use_radians=False)
                             rotated_cache[angle] = (rotated_poly, rotated_ref.x, rotated_ref.y)
                         except Exception as rotate_err:
                             logging.error(f"  Rotatie {instance_id_log} R:{angle} mislukt: {rotate_err}.")
