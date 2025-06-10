@@ -782,13 +782,7 @@ def nest_with_shelf(parts_to_place, part_details, available_sheets, part_spacing
                 if abs(ang) < ZERO_TOLERANCE:
                     w, h = orig_w, orig_h
                 else:
-                    rotated = rotate(
-                        info["shapely_polygon_0"],
-                        ang,
-                        origin=rot_origin,
-                        origin=(0, 0),
-                        use_radians=False,
-                    )
+                    rotated = rotate(info["shapely_polygon_0"], ang, origin=rot_origin, use_radians=False)
                     bounds = calculate_bounding_box(list(rotated.exterior.coords))
                     w, h = bounds["width"], bounds["height"]
                 orientations.append((w, h, ang))
