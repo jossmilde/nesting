@@ -225,7 +225,6 @@ def test_shelf_angles_with_offset_polygon():
     rot = data["placements"][0]["rotation"]
     assert abs(abs(rot) - 45) < 0.01 or abs(abs(rot) - 135) < 0.01
 
-
 def test_shelf_candidate_angles_used():
     """Rotation angles determined from the polygon should be honoured."""
     job = {
@@ -269,4 +268,5 @@ def test_shelf_candidate_angles_used():
     rot = data["placements"][0]["rotation"]
     assert rot in {0, 120, 240}
     assert rot != 90
+
 
