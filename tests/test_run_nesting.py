@@ -278,3 +278,45 @@ def test_shelf_candidate_angles_used():
     assert rot != 90
 
 
+def test_sheet_efficiency_calculated():
+    """The SVG_NEST strategy should record sheet areas used."""
+    job = {
+        "parts": [
+            {
+                "id": "p1",
+                "originalName": "square",
+                "quantity": 1,
+                "thickness": 1,
+                "profile2d": {"outer": [[0,0],[10,0],[10,10],[0,10],[0,0]]},
+            }
+        ],
+        "sheets": [
+            {"id": "s1", "quantity": 1, "thickness": 1, "width": 20, "height": 20}
+        ],
+        "parameters": {
+            "partToPartDistance": 0,
+            "partToSheetDistance": 0,
+            "allowRotation": "3",
+            "bestFitScore": "YX",
+        },
+    }
+
+    run_script = Path(__file__).resolve().parents[1] / "run_nesting.py"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        job_file = Path(tmp) / "job.json"
+        with open(job_file, "w", encoding="utf-8") as f:
+            json.dump(job, f)
+        result = subprocess.run(
+            [sys.executable, str(run_script), str(job_file)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+    data = json.loads(result.stdout)
+    assert data["success"] is True
+    assert data["statistics"]["totalEfficiency"] > 0
+    assert data["sheetStatistics"][0]["usedArea"] > 0
+
+

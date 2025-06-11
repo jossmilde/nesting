@@ -712,6 +712,8 @@ def nest_with_svg_nest(parts_to_place, part_details, available_sheets, part_spac
                             placement_info["svg"] = polygon_to_svg(placed_poly)
                         placements.append(placement_info)
                         sheet["placed_items"].append(placement_info)
+                        # track original polygons for stats
+                        sheet["placed_original_polygons"].append(placed_poly)
                         buffer_amt = (part_spacing / 2.0) + TOLERANCE
                         buffered = placed_poly.buffer(buffer_amt, cap_style=1, join_style=1) if buffer_amt > ZERO_TOLERANCE else placed_poly
                         sheet["placed_shapely_polygons_buffered"].append(buffered)
