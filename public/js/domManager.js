@@ -208,9 +208,11 @@ export function displayNestingResults(placements = [], unplaced = [], statistics
             sheetStats.forEach(s => { html += `<li>${s.sheetId}: ${s.efficiency}%</li>`; });
             html += '</ul>';
         }
+
         if (typeof statistics?.totalEfficiency === 'number') {
             html += `<p><strong>Totale efficiëntie:</strong> ${statistics.totalEfficiency}%</p>`;
         }
+      
         if (unplaced?.length > 0) { html += `<p><strong>Niet Geplaatst:</strong></p><ul>`; unplaced.forEach(item => { const q = item.quantity || item.count || '?'; html += `<li>${item.originalName || item.id}: ${q}x</li>`; }); html += `</ul>`; }
         else if (statistics?.totalPartsPlaced > 0) { html += `<p style="color:green;"><strong>Alles geplaatst!</strong></p>`; }
         else { html += `<p style="color:orange;"><strong>Niets geplaatst.</strong></p>`; }
