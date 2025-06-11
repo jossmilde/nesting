@@ -1349,6 +1349,9 @@ def main(job_file_path):
     }
 
     sheet_statistics = []
+
+
+
     total_sheet_area_used = 0.0
     total_used_area = 0.0
     try:
@@ -1367,10 +1370,16 @@ def main(job_file_path):
                     "usedArea": round(used_area, 2),
                     "efficiency": eff,
                 })
+
+
+
         if total_sheet_area_used > ZERO_TOLERANCE:
             statistics["totalEfficiency"] = round(100.0 * total_used_area / total_sheet_area_used, 2)
         else:
             statistics["totalEfficiency"] = 0.0
+
+
+
     except Exception as stat_err:
         logging.error(f"Failed calculating sheet efficiency: {stat_err}")
     result_json = {
