@@ -186,9 +186,9 @@ export function drawSheetLayout(targetDiv, sheetInfo, placementsOnSheet, visualO
 
 
 // --- START FUNCTION displayNestingResults ---
-export function displayNestingResults(placements = [], unplaced = [], statistics = {}, originalSheetsData = [], refs, state) {
+export function displayNestingResults(placements = [], unplaced = [], statistics = {}, originalSheetsData = [], sheetStats = [], refs, state) {
     clearStatus(refs.statusMessagesDiv); // Gebruik geïmporteerde functie
-    state.currentNestingResult = { placements, unplaced, statistics, sheetsData: originalSheetsData };
+    state.currentNestingResult = { placements, unplaced, statistics, sheetStats, sheetsData: originalSheetsData };
     state.currentSheetIndex = 0;
     // console.log("Displaying results. Placements:", placements?.length ?? 0);
 
@@ -203,6 +203,11 @@ export function displayNestingResults(placements = [], unplaced = [], statistics
     if (refs.summaryDetailsDiv) {
         refs.summaryDetailsDiv.innerHTML = '';
         let html = `<p><strong>Statistieken:</strong><br>Geplaatst: ${statistics?.totalPartsPlaced??'N/A'}<br>Niet Geplaatst: ${statistics?.totalPartsUnplaced??'N/A'}<br>Platen Gebruikt: ${totalSheetsUsed}</p>`;
+        if (Array.isArray(sheetStats) && sheetStats.length > 0) {
+            html += '<p><strong>Efficiëntie per plaat:</strong></p><ul>';
+            sheetStats.forEach(s => { html += `<li>${s.sheetId}: ${s.efficiency}%</li>`; });
+            html += '</ul>';
+        }
         if (unplaced?.length > 0) { html += `<p><strong>Niet Geplaatst:</strong></p><ul>`; unplaced.forEach(item => { const q = item.quantity || item.count || '?'; html += `<li>${item.originalName || item.id}: ${q}x</li>`; }); html += `</ul>`; }
         else if (statistics?.totalPartsPlaced > 0) { html += `<p style="color:green;"><strong>Alles geplaatst!</strong></p>`; }
         else { html += `<p style="color:orange;"><strong>Niets geplaatst.</strong></p>`; }
