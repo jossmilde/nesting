@@ -912,7 +912,11 @@ def main(job_file_path):
     part_spacing = max(0.0, parameters.get("partToPartDistance", 0.0))
     sheet_margin = max(0.0, parameters.get("partToSheetDistance", 0.0))
     allowed_rotation_type = str(parameters.get("allowRotation", "2"))
-    best_fit_score_strategy = parameters.get("bestFitScore", "YX").upper()
+    best_fit_score_strategy = parameters.get("bestFitScore", "SHEETYX").upper()
+    if best_fit_score_strategy not in {"ORIGINDIST", "SHEETYX"}:
+        # Treat unknown or legacy values (e.g. "YX") as SHEETYX which keeps
+        # using the same sheet while candidate points remain.
+        best_fit_score_strategy = "SHEETYX"
     nesting_strategy = parameters.get("nestingStrategy", "DEFAULT").upper()
     logging.info(
         f"Parameters: partSpacing={part_spacing}, sheetMargin={sheet_margin}, allowRotation='{allowed_rotation_type}', bestFitScore='{best_fit_score_strategy}', strategy='{nesting_strategy}', maxIfpPoints=NO_LIMIT_TEST"
@@ -1346,6 +1350,8 @@ def main(job_file_path):
 
     sheet_statistics = []
 
+
+
     total_sheet_area_used = 0.0
     total_used_area = 0.0
     try:
@@ -1365,10 +1371,14 @@ def main(job_file_path):
                     "efficiency": eff,
                 })
 
+
+
         if total_sheet_area_used > ZERO_TOLERANCE:
             statistics["totalEfficiency"] = round(100.0 * total_used_area / total_sheet_area_used, 2)
         else:
             statistics["totalEfficiency"] = 0.0
+
+
 
     except Exception as stat_err:
         logging.error(f"Failed calculating sheet efficiency: {stat_err}")
