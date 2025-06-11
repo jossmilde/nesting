@@ -1343,11 +1343,18 @@ def main(job_file_path):
     }
 
     sheet_statistics = []
+
+    total_sheet_area_used = 0.0
+    total_used_area = 0.0
     try:
         for sheets_list in available_sheets.values():
             for sheet in sheets_list:
+                if not sheet.get("placed_items"):
+                    continue  # skip unused sheets
                 total_area = abs(sheet["sheet_polygon_with_margin"].area)
                 used_area = sum(abs(p.area) for p in sheet.get("placed_original_polygons", []))
+                total_sheet_area_used += total_area
+                total_used_area += used_area
                 eff = round(100.0 * used_area / total_area, 2) if total_area > ZERO_TOLERANCE else 0.0
                 sheet_statistics.append({
                     "sheetId": sheet["id"],
@@ -1355,6 +1362,12 @@ def main(job_file_path):
                     "usedArea": round(used_area, 2),
                     "efficiency": eff,
                 })
+
+        if total_sheet_area_used > ZERO_TOLERANCE:
+            statistics["totalEfficiency"] = round(100.0 * total_used_area / total_sheet_area_used, 2)
+        else:
+            statistics["totalEfficiency"] = 0.0
+
     except Exception as stat_err:
         logging.error(f"Failed calculating sheet efficiency: {stat_err}")
     result_json = {
@@ -1367,6 +1380,8 @@ def main(job_file_path):
     }
     logging.info("Resultaat naar stdout sturen.")
     logging.info(f"Statistieken: {json.dumps(statistics)}")
+    if sheet_statistics:
+        logging.info(f"SheetStats: {json.dumps(sheet_statistics)}")
     logging.shutdown()
     if _timing_enabled and timing_stats:
         timing_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "nesting_timing.log")
