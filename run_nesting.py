@@ -367,6 +367,24 @@ def polygon_to_svg(poly):
     path = "M " + " L ".join(f"{x:.2f},{y:.2f}" for x, y in coords) + " Z"
     return path
 
+# --- Helper: generate grid points inside a polygon ---
+def grid_points_within(polygon, step):
+    """Return regularly spaced interior points within *polygon*."""
+    if not polygon or polygon.is_empty:
+        return []
+    minx, miny, maxx, maxy = polygon.bounds
+    x = minx
+    pts = []
+    while x <= maxx + ZERO_TOLERANCE:
+        y = miny
+        while y <= maxy + ZERO_TOLERANCE:
+            p = Point(x, y)
+            if polygon.contains(p):
+                pts.append((x, y))
+            y += step
+        x += step
+    return pts
+
 # --- Helper: evalueer kandidaatpunten ---
 @timed
 def evaluate_candidate_points(points_to_test, sheet, sheet_index, rotated_poly, rotated_ref_x, rotated_ref_y, rotation_angle, candidate_valid_area, candidate_buffer_amount):
@@ -674,14 +692,22 @@ def nest_with_svg_nest(parts_to_place, part_details, available_sheets, part_spac
             for angle in candidate_angles:
                 rotated = rotate(base_poly, angle, origin=ref_origin, use_radians=False) if angle else base_poly
                 rxmin, rymin, _, _ = rotated.bounds
-                # If the remaining free area consists of multiple polygons,
-                # collect candidate coordinates from each polygon exterior.
+                # Collect candidate coordinates from free area boundaries
+                # and supplement with a simple grid of interior points.
                 candidate_points = []
+                grid_step = min(
+                    rotated.bounds[2] - rotated.bounds[0],
+                    rotated.bounds[3] - rotated.bounds[1],
+                ) / 2.0
+                def gather_from_polygon(poly):
+                    candidate_points.extend(list(poly.exterior.coords)[:-1])
+                    candidate_points.extend(grid_points_within(poly, grid_step))
+
                 if isinstance(free_area, Polygon):
-                    candidate_points.extend(list(free_area.exterior.coords)[:-1])
+                    gather_from_polygon(free_area)
                 elif isinstance(free_area, MultiPolygon):
                     for geom in free_area.geoms:
-                        candidate_points.extend(list(geom.exterior.coords)[:-1])
+                        gather_from_polygon(geom)
                 else:
                     logging.debug(
                         f"Skipping candidate point generation: unsupported geometry {free_area.geom_type}"
