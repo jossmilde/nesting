@@ -266,7 +266,57 @@ def test_shelf_candidate_angles_used():
     assert data["success"] is True
     assert len(data["placements"]) == 1
     rot = data["placements"][0]["rotation"]
-    assert rot in {0, 120, 240}
+    # Rotation should match one of the candidate angles returned by the helper
+    import importlib.util, pathlib
+    rn_path = pathlib.Path(__file__).resolve().parents[1] / "run_nesting.py"
+    spec = importlib.util.spec_from_file_location("run_nesting", rn_path)
+    rn = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rn)
+    poly = rn.create_shapely_polygon([[0,0],[2,10],[4,0]], None, "test")
+    cand = rn.get_potential_rotation_angles(poly)
+    assert round(rot, 2) in {round(a,2) for a in cand}
     assert rot != 90
+
+
+def test_sheet_efficiency_calculated():
+    """The SVG_NEST strategy should record sheet areas used."""
+    job = {
+        "parts": [
+            {
+                "id": "p1",
+                "originalName": "square",
+                "quantity": 1,
+                "thickness": 1,
+                "profile2d": {"outer": [[0,0],[10,0],[10,10],[0,10],[0,0]]},
+            }
+        ],
+        "sheets": [
+            {"id": "s1", "quantity": 1, "thickness": 1, "width": 20, "height": 20}
+        ],
+        "parameters": {
+            "partToPartDistance": 0,
+            "partToSheetDistance": 0,
+            "allowRotation": "3",
+            "bestFitScore": "YX",
+        },
+    }
+
+    run_script = Path(__file__).resolve().parents[1] / "run_nesting.py"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        job_file = Path(tmp) / "job.json"
+        with open(job_file, "w", encoding="utf-8") as f:
+            json.dump(job, f)
+        result = subprocess.run(
+            [sys.executable, str(run_script), str(job_file)],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+    data = json.loads(result.stdout)
+    assert data["success"] is True
+    assert data["statistics"]["totalEfficiency"] > 0
+    assert data["sheetStatistics"][0]["usedArea"] > 0
 
 
