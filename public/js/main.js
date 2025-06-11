@@ -278,7 +278,7 @@ async function handleStartNestingClick() {
         if (!response.ok || result.success === false) { throw new Error(result.message || `Serverfout: ${response.statusText}`); }
         console.log("[main.js] Server response /nest:", result);
         // Roep display functie aan (uit domManager), geef refs en state mee
-        displayNestingResults(result.placements, result.unplaced, result.statistics, jobData.sheets, elementRefs, appState);
+        displayNestingResults(result.placements, result.unplaced, result.statistics, jobData.sheets, result.sheetStatistics || [], elementRefs, appState);
         showStatus(elementRefs.statusMessagesDiv, `Nesting voltooid: ${result.message || 'Klaar.'}`, "success");
     } catch (error) {
         console.error("[main.js] Fout bij /nest call:", error);
