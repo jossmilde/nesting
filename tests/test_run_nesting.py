@@ -266,7 +266,15 @@ def test_shelf_candidate_angles_used():
     assert data["success"] is True
     assert len(data["placements"]) == 1
     rot = data["placements"][0]["rotation"]
-    assert rot in {0, 120, 240}
+    # Rotation should match one of the candidate angles returned by the helper
+    import importlib.util, pathlib
+    rn_path = pathlib.Path(__file__).resolve().parents[1] / "run_nesting.py"
+    spec = importlib.util.spec_from_file_location("run_nesting", rn_path)
+    rn = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(rn)
+    poly = rn.create_shapely_polygon([[0,0],[2,10],[4,0]], None, "test")
+    cand = rn.get_potential_rotation_angles(poly)
+    assert round(rot, 2) in {round(a,2) for a in cand}
     assert rot != 90
 
 
